@@ -1,6 +1,5 @@
 package com.volhovm.mathlogic
 
-import com.volhovm.mathlogic.grammar._
 import scala.util.parsing.combinator._
 
 class ExpressionParser[A](varP: String => A, pattern: String = """[A-z]+""") extends JavaTokenParsers {
