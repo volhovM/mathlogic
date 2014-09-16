@@ -39,21 +39,21 @@ object Verificator {
 
   def isAxiom[A](x: Expr[A], maps: MPair[A] = emptyPair[A], line: Int = 0): Option[MPair[A]]
   = proceed(maps, line, x, x match {
-    case -->(-->(a, b), -->(-->(c, -->(d, e)), -->(f, g)))
+    case ((a --> b) --> ((c --> (d --> e)) --> (f --> g)))
     => if (a == c && b == d && e == g && a == f) Some(Axiom(2)) else None
-    case -->(-->(a, b), -->(-->(c, d), -->(-|(e, f), g)))
+    case ((a --> b) --> ((c --> d) --> ((e ||| f) --> g)))
     => if (a == e && b == d && c == f && d == g) Some(Axiom(8)) else None
-    case -->(-->(a, b), (-->(-->(c, -!(d)), -!(e))))
+    case ((a --> b) --> ((c --> !!(d)) --> !!(e)))
     => if (a == c && b == d && a == e) Some(Axiom(9)) else None
-    case -->(a, -->(b, -&(c, d)))
+    case (a --> (b --> (c &&& d)))
     => if (a == c && b == d) Some(Axiom(3)) else None
-    case -->(-&(a, b), c)
+    case ((a &&& b) --> c)
     => if (a == c) Some(Axiom (4)) else if (b == c) Some (Axiom(5)) else None
-    case -->(a, -|(b, c))
+    case (a --> (b ||| c))
     => if (a == b) Some(Axiom(6)) else if (a == c) Some(Axiom(7)) else None
-    case -->(-!(-!(a)), b)
+    case (!!(!!(a)) --> b)
     => if (a == b)  Some(Axiom(10)) else None
-    case -->(a, -->(b, c))
+    case (a --> (b --> c))
     => if (a == c) Some(Axiom(1)) else None
     case _ => None
   })

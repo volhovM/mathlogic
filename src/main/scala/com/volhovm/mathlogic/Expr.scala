@@ -10,6 +10,7 @@ sealed trait Expr[A] {
 }
 case class Var[A](a: A) extends Expr[A] { override def toString: String = a.toString }
 case class -->[A](a: Expr[A], b: Expr[A]) extends Expr[A] { override def toString = string2(" -> ")(a, b) }
-case class -&[A](a: Expr[A], b: Expr[A]) extends Expr[A] { override def toString = string2(" & ")(a, b)}
-case class -|[A](a: Expr[A], b: Expr[A]) extends Expr[A] { override def toString = string2(" | ")(a, b)}
-case class -![A](a: Expr[A]) extends Expr[A] { override def toString: String = "!" + a }
+case class &&&[A](a: Expr[A], b: Expr[A]) extends Expr[A] { override def toString = string2(" & ")(a, b)}
+case class |||[A](a: Expr[A], b: Expr[A]) extends Expr[A] { override def toString = string2(" | ")(a, b)}
+case class !![A](a: Expr[A]) extends Expr[A] { override def toString: String = "!" + a }
+case class |-[A](context: List[Expr[A]], a: Expr[A]) extends Expr[A] { override def toString: String = context + " |- " + a}

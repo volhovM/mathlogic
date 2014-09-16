@@ -13,10 +13,10 @@ class ExprParserTest extends Specification {
       parser.getExpression("a") must_== Var("a")
     }
     "support right operator priority" in {
-      parser.getExpression("a | B | c ") must_== -|(-|(Var("a"), Var("B")), Var("c"))
-      parser.getExpression("a & B | c ") must_== -|(-&(Var("a"), Var("B")), Var("c"))
-      parser.getExpression("a -> B & c ") must_== -->(Var("a"), -&(Var("B"), Var("c")))
-      parser.getExpression("!!!!a") must_== -!(-!(-!(-!(Var("a")))))
+      parser.getExpression("a | B | c ") must_== |||(|||(Var("a"), Var("B")), Var("c"))
+      parser.getExpression("a & B | c ") must_== |||(&&&(Var("a"), Var("B")), Var("c"))
+      parser.getExpression("a -> B & c ") must_== -->(Var("a"), &&&(Var("B"), Var("c")))
+      parser.getExpression("!!!!a") must_== !!(!!(!!(!!(Var("a")))))
     }
     "have no problems with parenthesis" in {
       parser.getExpression("((((((a))))))") must_== parser.getExpression("a")
