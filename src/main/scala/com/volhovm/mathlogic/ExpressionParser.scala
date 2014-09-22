@@ -1,28 +1,26 @@
 package com.volhovm.mathlogic
+import org.parboiled2._
+import shapeless.HList
 
-import scala.util.parsing.combinator._
+class ExpressionParser(val input: ParserInput) extends Parser {
 
-class ExpressionParser[A](varP: String => A, pattern: String = """[A-z]""") extends JavaTokenParsers {
   // Grammar
   // S = (A {"," A}* "|-" A ) | A
   // A = B "->" A | B
   // B = C {"|" C}*
   // C = D {"&" D}*
   // D = Var | "!" D | "(" A ")"
-  private def spaces = whiteSpace.?
-  private def lexem(a: Parser[Expr[A]]) = spaces ~> a <~ spaces
-  private def parenth(a: Parser[Expr[A]]) = "(" ~> a <~ ")"
-  private def variable: Parser[Expr[A]] = pattern.r ^^ (a => Var[A](varP(a)))
-  private def negate: Parser[Expr[A]] = """!""" ~> D ^^ { x => !![A](x)}
-  private def implication: Parser[Expr[A]] = (B ~ ("->" ~> A)) ^^ { x => -->[A](x._1, x._2)}
 
-  def S = ((((A ~ ("," ~> A).*) ^^ { a => a._1 :: a._2 }) ~ ("|-" ~> A)) ^^ {a => |-[A](a._1, a._2)}) | A
-  private def A: Parser[Expr[A]] = implication | B
-  private def B: Parser[Expr[A]] = (C ~ ("|" ~> C).*) ^^ { a => a._2.foldLeft(a._1)(|||[A])}
-  private def C: Parser[Expr[A]] = (D ~ ("&" ~> D).*) ^^ { a => a._2.foldLeft(a._1)(&&&[A])}
-  private def D: Parser[Expr[A]] = lexem(variable | negate | parenth(A))
-
-  def getExpression(data: String) = parseAll(S, data).get
+  def inputLine: Rule1[Expr] = rule { spaces ~ A ~ spaces ~ EOI }
+  private def A: Rule1[Expr] = rule { oneOrMore(B).separatedBy("->") ~> ((a: Seq[Expr]) => a.dropRight(1).foldRight(a.last)(-->))}
+  private def B: Rule1[Expr] = rule { C ~ zeroOrMore("|" ~ C ~> |||) }
+  private def C: Rule1[Expr] = rule { D ~ zeroOrMore("&" ~ D ~> &&&) }
+  private def D: Rule1[Expr] = rule { spaces ~ (variable | negate | parenth) ~ spaces }
+  private def spaces: Rule0 = rule { zeroOrMore(CharPredicate(" \n\r\t\f")) }
+  private def variable: Rule1[Expr] = rule { capture(upper) ~> ((a: String) => Var(a)) }
+  private def upper: Rule0 = rule { CharPredicate.UpperAlpha }
+  private def negate: Rule1[Expr] = rule { "!" ~ D ~> !! }
+  private def parenth: Rule1[Expr] = rule { "(" ~ A ~ ")" }
 }
 
 

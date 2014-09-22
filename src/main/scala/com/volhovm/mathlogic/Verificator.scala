@@ -1,32 +1,38 @@
 package com.volhovm.mathlogic
 
+import scala.collection._
+import scala.collection.mutable.{MultiMap => MMap}
+
 /**
  * @author volhovm
  *         Created on 9/10/14
  */
 
 object Verificator {
+  // FIXME Must use multimaps or somewhat -- lines in input can duplicate
   // We store Map of [expression, (description, line)] pairs
-  type CMap[A] = Map[Expr[A], (Constr, Int)]
-  type MPMap[A] = Map[Expr[A], (Expr[A], Int)]
-  type MPair[A] = (CMap[A], MPMap[A])
-  def emptyPair[A] = (Map.empty[Expr[A], (Constr, Int)], Map.empty[Expr[A], (Expr[A], Int)])
+  type CMap = Map[Expr, (Constr, Int)]
+//  type CMap = MMap[Expr, (Constr, Int)]
+  type MPMap = Map[Expr, (Expr, Int)]
+//  type MPMap = Map[Expr, (Expr, Int)]
+  type MPair = (CMap, MPMap)
+  def emptyPair = (Map.empty[Expr, (Constr, Int)], Map.empty[Expr, (Expr, Int)])
 
-  def verificate[A](exprs: List[Expr[A]],
-                    maps: MPair[A] = emptyPair[A],
-                    line: Int = 1): CMap[A]
+  def verificate(exprs: List[Expr],
+                    maps: MPair = emptyPair,
+                    line: Int = 1): CMap
   = if (exprs.isEmpty) maps._1
   else isAxiom(exprs.head, maps, line) match {
     case Some(newMaps) => verificate(exprs.tail, newMaps, line + 1)
     case None => isModusPonens(exprs.head, maps, line) match {
       case Some(newMaps) => verificate(exprs.tail, newMaps, line + 1)
-      case None => verificate(exprs.tail, (maps._1.+(exprs.head ->(Fault(), line)), maps._2), line + 1)
+      case None => verificate(exprs.tail, (maps._1.+(exprs.head -> (Fault(), line)), maps._2), line + 1)
     }
   }
 
-  def isModusPonens[A](x: Expr[A], maps: MPair[A] = emptyPair[A], line: Int = 0): Option[MPair[A]]
+  def isModusPonens(x: Expr, maps: MPair = emptyPair, line: Int = 0): Option[MPair]
   = x match {
-    case a: -->[A] => maps._2.get(a) match {
+    case a: --> => maps._2.get(a) match {
       case Some((exp, newLine1)) => maps._1.get(exp) match {
         case Some((description2, newLine2))
         => proceed (maps, line, x, Some(ModusPonens(newLine2, newLine1)))
@@ -37,7 +43,7 @@ object Verificator {
     case _ => None
   }
 
-  def isAxiom[A](x: Expr[A], maps: MPair[A] = emptyPair[A], line: Int = 0): Option[MPair[A]]
+  def isAxiom(x: Expr, maps: MPair = emptyPair, line: Int = 0): Option[MPair]
   = proceed(maps, line, x, x match {
     case ((a --> b) --> ((c --> (d --> e)) --> (f --> g)))
     => if (a == c && b == d && e == g && a == f) Some(Axiom(2)) else None
@@ -58,11 +64,11 @@ object Verificator {
     case _ => None
   })
 
-  def proceed[A](maps: MPair[A], line: Int, x: Expr[A], data: Option[Constr]): Option[MPair[A]]
+  def proceed(maps: MPair, line: Int, x: Expr, data: Option[Constr]): Option[MPair]
   = data match {
-    case Some(construction) => Some(maps._1.+(x ->(construction, line)),
+    case Some(construction) => Some(maps._1.+(x -> (construction, line)),
       x match {
-        case y: -->[A] => maps._2.+(y.b -> (y.a, line))
+        case y: --> => maps._2.+(y.b -> (y.a, line))
         case _ => maps._2
       })
     case _ => None
