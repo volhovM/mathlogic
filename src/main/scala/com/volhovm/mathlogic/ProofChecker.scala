@@ -6,6 +6,15 @@ package com.volhovm.mathlogic
  */
 
 object ProofChecker {
+  var curtime = System.currentTimeMillis()
+  var timeList = List[String]()
+  def memtime(a: String = "") = {
+    timeList = (a + ": " + (System.currentTimeMillis() - curtime)) :: timeList
+    curtime = System.currentTimeMillis()
+  }
+  def dumptime: Unit = {
+    for (i <- timeList.reverse) println(i)
+  }
   def main(args: Array[String]) {
     val time0 = System.currentTimeMillis()
     var maxlength = 30
@@ -17,13 +26,14 @@ object ProofChecker {
       if (curr.length > maxlength) maxlength = curr.length
       lst = new ExpressionParser(curr).inputLine.run().get :: lst
     }
+    memtime("Reading + parsing")
     lst = lst.reverse
-    val time1 = System.currentTimeMillis()
+    memtime("Reversing")
     var ctr = 0
-    println(Verificator.verificate(lst)
-      .toList
-      .sortWith((a, b) => a._2._2 < b._2._2)
-      .foreach(a => println(({ctr += 1; ctr} + ". %-" + (maxlength + 10) + "s%-20s").format(a._1, a._2._1))))
-    print((time1 - time0) + " " + (System.currentTimeMillis() - time1))
+    val list = Verificator.verificate(lst, maxlength)
+    memtime("Verificating")
+    list.reverse.foreach({(a: String) => println(ctr + ". " + a); ctr += 1 })
+    memtime("Reversing + writing")
+    dumptime
   }
 }

@@ -1,7 +1,8 @@
 package com.volhovm.mathlogic
 
+import scala.annotation.switch
 import scala.collection._
-import scala.collection.mutable.{MultiMap => MMap}
+import scala.collection.mutable.{MultiMap, HashMap, Set}
 
 /**
  * @author volhovm
@@ -9,42 +10,40 @@ import scala.collection.mutable.{MultiMap => MMap}
  */
 
 object Verificator {
-  // FIXME Must use multimaps or somewhat -- lines in input can duplicate
-  // We store Map of [expression, (description, line)] pairs
-  type CMap = Map[Expr, (Constr, Int)]
-//  type CMap = MMap[Expr, (Constr, Int)]
+  type CMap = Map[Expr, Int]
   type MPMap = Map[Expr, (Expr, Int)]
-//  type MPMap = Map[Expr, (Expr, Int)]
-  type MPair = (CMap, MPMap)
-  def emptyPair = (Map.empty[Expr, (Constr, Int)], Map.empty[Expr, (Expr, Int)])
+  type State = (CMap, MPMap, List[String])
+  private def emptyData = (Map.empty[Expr, Int],
+    Map.empty[Expr, (Expr, Int)],
+    List[String]())
 
   def verificate(exprs: List[Expr],
-                    maps: MPair = emptyPair,
-                    line: Int = 1): CMap
-  = if (exprs.isEmpty) maps._1
-  else isAxiom(exprs.head, maps, line) match {
-    case Some(newMaps) => verificate(exprs.tail, newMaps, line + 1)
-    case None => isModusPonens(exprs.head, maps, line) match {
-      case Some(newMaps) => verificate(exprs.tail, newMaps, line + 1)
-      case None => verificate(exprs.tail, (maps._1.+(exprs.head -> (Fault(), line)), maps._2), line + 1)
+                 margin: Int,
+                 state: State = emptyData,
+                 line: Int = 1): List[String]
+  = if (exprs.isEmpty) state._3
+  else isAxiom(exprs.head, margin, state, line) match {
+    case Some(newMaps) => verificate(exprs.tail, margin, newMaps, line + 1)
+    case None => isModusPonens(exprs.head, margin, state, line) match {
+      case Some(newMaps) => verificate(exprs.tail, margin, newMaps, line + 1)
+      case None => verificate(exprs.tail, margin, (state._1.+(exprs.head -> line), state._2, state._3), line + 1)
     }
   }
 
-  def isModusPonens(x: Expr, maps: MPair = emptyPair, line: Int = 0): Option[MPair]
+  private def isModusPonens(x: Expr, margin: Int, state: State = emptyData, line: Int = 0): Option[State]
   = x match {
-    case a: --> => maps._2.get(a) match {
-      case Some((exp, newLine1)) => maps._1.get(exp) match {
-        case Some((description2, newLine2))
-        => proceed (maps, line, x, Some(ModusPonens(newLine2, newLine1)))
-        case _ => None
+    case a: --> => state._2.get(a) match { // FIXME
+      case Some((expr, newLine1)) => state._1.get(expr) match {
+            case Some(newLine2) => proceed (state, line, x, Some(ModusPonens(newLine2, newLine1)), margin)
+            case _ => None
       }
       case _ => None
     }
     case _ => None
   }
 
-  def isAxiom(x: Expr, maps: MPair = emptyPair, line: Int = 0): Option[MPair]
-  = proceed(maps, line, x, x match {
+  private def isAxiom(x: Expr, margin: Int, state: State = emptyData, line: Int = 0): Option[State]
+  = proceed(state, line, x, (x: @switch) match {
     case ((a --> b) --> ((c --> (d --> e)) --> (f --> g)))
     => if (a == c && b == d && e == g && a == f) Some(Axiom(2)) else None
     case ((a --> b) --> ((c --> d) --> ((e ||| f) --> g)))
@@ -62,15 +61,17 @@ object Verificator {
     case (a --> (b --> c))
     => if (a == c) Some(Axiom(1)) else None
     case _ => None
-  })
+  }, margin)
 
-  def proceed(maps: MPair, line: Int, x: Expr, data: Option[Constr]): Option[MPair]
+  private def proceed(state: State, line: Int, x: Expr, data: Option[Constr], margin: Int): Option[State]
   = data match {
-    case Some(construction) => Some(maps._1.+(x -> (construction, line)),
+    case Some(construction) => Some(
+      (if (!state._1.contains(x)) state._1.+(x -> line) else state._1,
       x match {
-        case y: --> => maps._2.+(y.b -> (y.a, line))
-        case _ => maps._2
-      })
+        case y: --> => if (state._1.contains(y.a)) state._2.+(y.b -> (y.a, line)) else state._2
+        case _ => state._2
+      },
+      ("%-" + (margin + 10) + "s%-20s").format(x, construction) :: state._3))
     case _ => None
   }
 }
