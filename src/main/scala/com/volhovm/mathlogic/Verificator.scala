@@ -22,7 +22,7 @@ object Verificator {
                  margin: Int,
                  state: State = emptyData,
                  line: Int = 1): List[String]
-  = if (exprs.isEmpty) state._3
+  = if (exprs.isEmpty) state._3.reverse
   else verificate(exprs.tail, margin, proceed(state, line, exprs.head, getConstructionType(exprs.head, state), margin), line + 1)
 
   private def getConstructionType(x: Expr, state: State): Constr

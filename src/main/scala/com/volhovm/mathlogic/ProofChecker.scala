@@ -32,7 +32,7 @@ object ProofChecker {
     memtime("Reversing")
     val list = Verificator.verificate(lst, maxlength)
     memtime("Verificating")
-    list.reverse.foreach(println)
+    list.foreach(println)
     memtime("Reversing + writing")
     dumptime
   }
