@@ -9,4 +9,4 @@ sealed trait Constr
 case class Fault() extends Constr
 case class Axiom(num: Int) extends Constr
 case class ModusPonens(num1: Int, num2: Int) extends Constr
-// TODO Deduction
+case class Assumption() extends Constr

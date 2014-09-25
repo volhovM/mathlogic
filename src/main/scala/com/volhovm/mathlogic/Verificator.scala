@@ -11,21 +11,35 @@ import scala.collection.mutable.{MultiMap, HashMap, Set}
 
 object Verificator {
   // TODO Performance check
-  type CMap = Map[Expr, (Constr, Int)]
-  type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
-  type State = (CMap, MPMap, List[String])
-  private def emptyData = (Map.empty[Expr, (Constr, Int)],
+  private type CMap = Map[Expr, (Constr, Int)]
+  private type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
+  private type State[A] = (CMap, MPMap, List[A])
+  private def emptyState[A]: State[A]  = (Map.empty[Expr, (Constr, Int)],
     new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
-    List[String]())
+    List[A]())
+
+  def mkState(input: List[(Expr, Constr)]) = {
+    var line = 0
+    input.foldLeft(emptyState[(Int, Expr, Constr)]){ case (state, (expr: Expr, cnstr: Constr)) => proceed(
+    state, {line += 1; line}, expr, cnstr, { (x, construction, line) => (line, x, construction)})}
+  }
+
+  def verificateRaw(exprs: List[Expr],
+                    state: State[(Int, Expr, Constr)] = emptyState[(Int, Expr, Constr)],
+                    line: Int = 1): List[(Int, Expr, Constr)]
+  = if (exprs.isEmpty) state._3.reverse
+  else verificateRaw(exprs.tail, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
+  {(x, construction, line) => (line, x, construction)}), line + 1)
 
   def verificate(exprs: List[Expr],
                  margin: Int,
-                 state: State = emptyData,
+                 state: State[String] = emptyState[String],
                  line: Int = 1): List[String]
   = if (exprs.isEmpty) state._3.reverse
-  else verificate(exprs.tail, margin, proceed(state, line, exprs.head, getConstructionType(exprs.head, state), margin), line + 1)
+  else verificate(exprs.tail, margin, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
+  {(x, construction, line) => (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction)}), line + 1)
 
-  private def getConstructionType(x: Expr, state: State): Constr
+  private def getConstructionType[A](x: Expr, state: State[A]): Constr
   = (x: @switch) match {
       // Axioms
     case ((a --> b) --> ((c --> (d --> e)) --> (f --> g))) if a == c && b == d && e == g && a == f => Axiom(2)
@@ -53,12 +67,12 @@ object Verificator {
     case _ => Fault()
   }
 
-  private def proceed(state: State, line: Int, x: Expr, construction: Constr, margin: Int): State
+  private def proceed[A](state: State[A], line: Int, x: Expr, construction: Constr, transformer: (Expr, Constr, Int) => A): State[A]
   = (state._1.+(x -> ((construction, line))),
     x match {
       case y: --> =>
         state._2.addBinding(y.b, (y.a, line))
       case _ => state._2
     },
-    (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction) :: state._3)
+    transformer(x, construction, line) :: state._3)
 }
