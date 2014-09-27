@@ -12,7 +12,7 @@ class ExpressionParser(val input: ParserInput) extends Parser {
   // D = Var | "!" D | "(" A ")"
 
   def derivationInputLine: Rule1[(List[Expr], Expr)]
-  = rule { ((zeroOrMore(A).separatedBy(",") ~> ((a: Seq[Expr]) => a.toList)) ~ "|-" ~ A) ~> ((a: List[Expr], b: Expr) => (a, b))}
+  = rule { ((zeroOrMore(A).separatedBy(",") ~> ((a: Seq[Expr]) => a.toList)) ~ (spaces ~ "|-") ~ A) ~> ((a: List[Expr], b: Expr) => (a, b))}
   def inputLine: Rule1[Expr] = rule { A ~ EOI }
   private def A: Rule1[Expr] = rule { oneOrMore(B).separatedBy("->") ~> ((a: Seq[Expr]) => a.reduceRight(-->)) }
 //  private def A: Rule1[Expr] = rule { B ~ zeroOrMore("->" ~ )}

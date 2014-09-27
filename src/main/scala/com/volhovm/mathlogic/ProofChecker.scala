@@ -6,11 +6,12 @@ package com.volhovm.mathlogic
  */
 
 object ProofChecker {
+
   def main(args: Array[String]) {
-    var maxlength = 30
+    var maxlength: Int = 30
     var lst: List[Expr] = List.empty[Expr]
-//    val iterator = scala.io.Source.fromFile("simpletest.in").getLines()
-    val iterator = scala.io.Source.fromFile("maxtest.in").getLines()
+    val iterator = scala.io.Source.fromFile("simpletest.in").getLines()
+//    val iterator = scala.io.Source.fromFile("maxtest.in").getLines()
     var curr = ""
     while (iterator.hasNext){
       curr = iterator.next()

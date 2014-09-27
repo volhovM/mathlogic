@@ -13,21 +13,24 @@ object Verificator {
   // TODO Performance check
   private type CMap = Map[Expr, (Constr, Int)]
   private type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
-  private type State[A] = (CMap, MPMap, List[A])
-  private def emptyState[A]: State[A]  = (Map.empty[Expr, (Constr, Int)],
+  private type Context = List[Expr]
+  private type State[A] = (CMap, MPMap, Context, List[A])
+  private def emptyState[A]: State[A]  = (
+    Map.empty[Expr, (Constr, Int)],
     new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
+    List[Expr](),
     List[A]())
 
-  def mkState(input: List[(Expr, Constr)]) = {
-    var line = 0
-    input.foldLeft(emptyState[(Int, Expr, Constr)]){ case (state, (expr: Expr, cnstr: Constr)) => proceed(
-    state, {line += 1; line}, expr, cnstr, { (x, construction, line) => (line, x, construction)})}
-  }
+  def contextState[A](input: List[Expr]) = (
+    Map.empty[Expr, (Constr, Int)],
+    new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
+    input,
+    List[A]())
 
   def verificateRaw(exprs: List[Expr],
                     state: State[(Int, Expr, Constr)] = emptyState[(Int, Expr, Constr)],
                     line: Int = 1): List[(Int, Expr, Constr)]
-  = if (exprs.isEmpty) state._3.reverse
+  = if (exprs.isEmpty) state._4.reverse
   else verificateRaw(exprs.tail, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
   {(x, construction, line) => (line, x, construction)}), line + 1)
 
@@ -35,7 +38,7 @@ object Verificator {
                  margin: Int,
                  state: State[String] = emptyState[String],
                  line: Int = 1): List[String]
-  = if (exprs.isEmpty) state._3.reverse
+  = if (exprs.isEmpty) state._4.reverse
   else verificate(exprs.tail, margin, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
   {(x, construction, line) => (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction)}), line + 1)
 
@@ -54,12 +57,14 @@ object Verificator {
     case (a --> (b --> c)) if a == c => Axiom(1)
       // Repeating
     case a if state._1.contains(a) => state._1.get(a).get._1
+      // Assumption
+    case a if state._3.contains(a) => Assumption()
       // Modus Ponens
     case a: --> => state._2.get(a) match {
       case Some(set) if set.nonEmpty =>
         val (expr, newLine1) = set.reduceRight((a, b) => if (state._1.contains(a._1)) a else b)
         state._1.get(expr) match {
-          case Some((_, newLine2)) => ModusPonens(newLine1, newLine2)
+          case Some((_, newLine2)) => ModusPonens(newLine2, newLine1) // WHAT, INTO WHAT
           case _ => Fault()
         }
       case _ => Fault()
@@ -74,5 +79,6 @@ object Verificator {
         state._2.addBinding(y.b, (y.a, line))
       case _ => state._2
     },
-    transformer(x, construction, line) :: state._3)
+    state._3,
+    transformer(x, construction, line) :: state._4)
 }
