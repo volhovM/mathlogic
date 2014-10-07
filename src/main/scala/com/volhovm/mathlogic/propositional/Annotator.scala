@@ -1,46 +1,41 @@
-package com.volhovm.mathlogic
+package com.volhovm.mathlogic.propositional
 
 import scala.annotation.switch
 import scala.collection._
-import scala.collection.mutable.{MultiMap, HashMap, Set}
+import scala.collection.mutable.{HashMap, MultiMap, Set}
 
 /**
  * @author volhovm
  *         Created on 9/10/14
  */
 
-object Verificator {
-  // TODO Performance check
+object Annotator {
+  private type State[A] = (CMap, MPMap, Context, List[A])
   private type CMap = Map[Expr, (Constr, Int)]
   private type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
-  private type Context = List[Expr]
-  private type State[A] = (CMap, MPMap, Context, List[A])
-  private def emptyState[A]: State[A]  = (
-    Map.empty[Expr, (Constr, Int)],
-    new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
-    List[Expr](),
-    List[A]())
 
-  def contextState[A](input: List[Expr]) = (
+  def contextState[A](input: Context) = (
     Map.empty[Expr, (Constr, Int)],
     new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
     input,
     List[A]())
 
-  def verificateRaw(exprs: List[Expr],
-                    state: State[(Int, Expr, Constr)] = emptyState[(Int, Expr, Constr)],
-                    line: Int = 1): List[(Int, Expr, Constr)]
-  = if (exprs.isEmpty) state._4.reverse
-  else verificateRaw(exprs.tail, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
-  {(x, construction, line) => (line, x, construction)}), line + 1)
+  def emptyState[A]: State[A] = contextState[A](List[Expr]())
 
-  def verificate(exprs: List[Expr],
-                 margin: Int,
-                 state: State[String] = emptyState[String],
-                 line: Int = 1): List[String]
-  = if (exprs.isEmpty) state._4.reverse
-  else verificate(exprs.tail, margin, proceed(state, line,  exprs.head, getConstructionType(exprs.head, state),
-  {(x, construction, line) => (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction)}), line + 1)
+  def annotateGeneric[A](exprs: Proof,
+                  state: State[A],
+                  wrapper: (Expr, Constr, Int) => A,
+                  line: Int = 0): List[A] = 
+    if (exprs.isEmpty) state._4.reverse
+    else annotateGeneric(exprs.tail, wrap(state, line, exprs.head, getConstructionType(exprs.head, state), wrapper), wrapper, line + 1)
+  
+  def annotate[A](exprs: Proof, state: State[A] = emptyState[A]) = annotateGeneric[(Expr, Constr)](exprs, emptyState[(Expr, Constr)], {(e, c, i) => (e, c)})
+  
+  def annotateLined(exprs: Proof, state: State[(Int, Expr, Constr)] = emptyState[(Int, Expr, Constr)]) =
+    annotateGeneric(exprs, state, {(x, construction, line) => (line, x, construction)})
+  
+  def annotateString(exprs: Proof, margin: Int, state: State[String] = emptyState[String]) =
+    annotateGeneric(exprs, emptyState[String], {(x, construction, line) => (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction)})
 
   private def getConstructionType[A](x: Expr, state: State[A]): Constr
   = (x: @switch) match {
@@ -56,7 +51,7 @@ object Verificator {
     case (!!(!!(a)) --> b) if a == b => Axiom(10)
     case (a --> (b --> c)) if a == c => Axiom(1)
       // Repeating
-    case a if state._1.contains(a) => state._1.get(a).get._1
+//    case a if state._1.contains(a) => state._1.get(a).get._1
       // Assumption
     case a if state._3.contains(a) => Assumption()
       // Modus Ponens
@@ -72,13 +67,13 @@ object Verificator {
     case _ => Fault()
   }
 
-  private def proceed[A](state: State[A], line: Int, x: Expr, construction: Constr, transformer: (Expr, Constr, Int) => A): State[A]
+  private def wrap[A](state: State[A], line: Int, x: Expr, construction: Constr, wrapper: (Expr, Constr, Int) => A): State[A]
   = (state._1.+(x -> ((construction, line))),
     x match {
       case y: --> =>
-        state._2.addBinding(y.b, (y.a, line))
+        state._2.addBinding(y.rhs, (y.lhs, line))
       case _ => state._2
     },
     state._3,
-    transformer(x, construction, line) :: state._4)
+    wrapper(x, construction, line) :: state._4)
 }

@@ -1,4 +1,4 @@
-package com.volhovm.mathlogic
+package com.volhovm.mathlogic.propositional
 
 /**
  * @author volhovm
@@ -8,5 +8,5 @@ package com.volhovm.mathlogic
 sealed trait Constr
 case class Fault() extends Constr
 case class Axiom(num: Int) extends Constr
-case class ModusPonens(num1: Int, num2: Int) extends Constr
+case class ModusPonens(lhs: Int, rhs: Int) extends Constr
 case class Assumption() extends Constr

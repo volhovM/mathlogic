@@ -1,11 +1,11 @@
-package com.volhovm.mathlogic
+package com.volhovm.mathlogic.util
 
 /**
  * @author volhovm
  *         Created on 9/25/14
  */
 
-object TimeUtil {
+object TimeStampUtil {
   var curTime = System.currentTimeMillis()
   var timeList = List[String]()
   def memTime(a: String = "") = {
