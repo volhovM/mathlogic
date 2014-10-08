@@ -7,6 +7,7 @@ import Proofs._
  *         Created on 10/7/14
  */
 
+// self-documenting i suppose
 object IOUtil {
   def expressions(fileName: String): Proof =
     scala.io.Source.fromFile(fileName).getLines().toList.map((a: String) => new ExpressionParser(a).inputLine.run().get)

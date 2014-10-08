@@ -7,7 +7,7 @@ package com.volhovm.mathlogic
 
 package object propositional {
   type Proof = List[Expr]
-  type AProof = List[(Expr, Constr)]
+  type AProof = List[(Expr, Annotation)]
   type Context = List[Expr]
   type Derivation = (Context, Proof)
   type ADerivation = (Context, AProof)
