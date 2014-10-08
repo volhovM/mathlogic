@@ -17,6 +17,19 @@ object Proofs {
       e --> e
     )
 
+  def deduction1(e: Expr, alpha: Expr): Proof =
+    List[Expr](
+      e,
+      e --> (alpha --> e),
+      alpha --> e
+    )
+
+  def deduction2(e: Expr, alpha: Expr, expr1: Expr, expr2: Expr): Proof =
+    List[Expr](
+     (alpha --> expr1) --> ((alpha --> (expr1 --> e)) --> (alpha --> e)),
+     (alpha -->(expr1 --> e)) --> (alpha --> e),
+     alpha --> e
+    )
   //TODO add more
 
   // Annoteted: //

@@ -29,7 +29,7 @@ object Annotator {
     if (exprs.isEmpty) state._4.reverse
     else annotateGeneric(exprs.tail, wrap(state, line, exprs.head, getConstructionType(exprs.head, state), wrapper), wrapper, line + 1)
   
-  def annotate[A](exprs: Proof, state: State[A] = emptyState[A]) = annotateGeneric[(Expr, Constr)](exprs, emptyState[(Expr, Constr)], {(e, c, i) => (e, c)})
+  def annotate(exprs: Proof, state: State[(Expr, Constr)] = emptyState[(Expr, Constr)]) = annotateGeneric[(Expr, Constr)](exprs, state, {(e, c, i) => (e, c)})
   
   def annotateLined(exprs: Proof, state: State[(Int, Expr, Constr)] = emptyState[(Int, Expr, Constr)]) =
     annotateGeneric(exprs, state, {(x, construction, line) => (line, x, construction)})
@@ -55,7 +55,7 @@ object Annotator {
       // Assumption
     case a if state._3.contains(a) => Assumption()
       // Modus Ponens
-    case a: --> => state._2.get(a) match {
+    case a if state._2.contains(a) => state._2.get(a) match {
       case Some(set) if set.nonEmpty =>
         val (expr, newLine1) = set.reduceRight((a, b) => if (state._1.contains(a._1)) a else b)
         state._1.get(expr) match {

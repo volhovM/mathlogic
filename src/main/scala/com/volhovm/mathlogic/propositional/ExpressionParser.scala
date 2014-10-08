@@ -3,10 +3,15 @@ package com.volhovm.mathlogic.propositional
 import org.parboiled2._
 
 class ExpressionParser(val input: ParserInput) extends Parser {
+  // This works?!
+  implicit def wspStr(s: String): Rule0 = rule {
+    str(s) ~ zeroOrMore(' ')
+  }
+
   // Grammar
   // S = (A {"," A}* "|-" A ) | A
   def derivationInputLine: Rule1[(List[Expr], Expr)]
-  = rule { ((zeroOrMore(A).separatedBy(",") ~> ((a: Seq[Expr]) => a.toList)) ~ (spaces ~ "|-") ~ A) ~> ((a: List[Expr], b: Expr) => (a, b)) ~ EOI}
+  = rule { ((zeroOrMore(A).separatedBy(",") ~> ((a: Seq[Expr]) => a.toList)) ~ "|-" ~ A) ~> ((a: List[Expr], b: Expr) => (a, b)) ~ EOI }
 
   // Grammar
   // A = B "->" A | B
@@ -18,8 +23,8 @@ class ExpressionParser(val input: ParserInput) extends Parser {
 //  private def A: Rule1[Expr] = rule { B ~ zeroOrMore("->" ~ )}
   private def B: Rule1[Expr] = rule { C ~ zeroOrMore("|" ~ C ~> |||) }
   private def C: Rule1[Expr] = rule { D ~ zeroOrMore("&" ~ D ~> &&&) }
-  private def D: Rule1[Expr] = rule { spaces ~ (variable | negate | parenth)}
-  private def spaces: Rule0 = rule { zeroOrMore(" ") }
+  private def D: Rule1[Expr] = rule { variable | negate | parenth }
+//  private def spaces: Rule0 = rule { zeroOrMore(" ") }
   private def variable: Rule1[Expr] = rule { capture(upper) ~> ((a: String) => Var(a)) }
   private def upper: Rule0 = rule { anyOf("ABCPYFGRLOEUIDHTNSQJKXMWVZ") }
   private def negate: Rule1[Expr] = rule { "!" ~ D ~> !! }

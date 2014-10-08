@@ -1,6 +1,6 @@
 package com.volhovm.mathlogic
 
-import com.volhovm.mathlogic.propositional.IOUtil
+import com.volhovm.mathlogic.propositional.IOUtil._
 
 /**
  * @author volhovm
@@ -8,6 +8,5 @@ import com.volhovm.mathlogic.propositional.IOUtil
  */
 
 object ProofChecker {
-  def main(args: Array[String]): Unit =
-    (Stream.from(1) zip IOUtil.stringAnnotatedExpressions("maxtest.in")).foreach(println)
+  def main(args: Array[String]): Unit = stringAnnotatedExpressions("simpletest.in").foreach(println)
 }
