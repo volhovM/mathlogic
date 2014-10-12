@@ -1,6 +1,7 @@
 package com.volhovm.mathlogic
 
 import com.volhovm.mathlogic.propositional.IOUtil._
+import com.volhovm.mathlogic.propositional._
 
 /**
  * @author volhovm
@@ -9,5 +10,5 @@ import com.volhovm.mathlogic.propositional.IOUtil._
 
 // Task 2
 object DeductionTransformer {
-  def main(args: Array[String]) = printDerivation(deductionApply(getDerivation("deduction.in")))
+  def main(args: Array[String]) = printD(deductionApply(getD("deduction.in")))
 }

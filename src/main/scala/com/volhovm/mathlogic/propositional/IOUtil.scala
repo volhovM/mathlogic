@@ -1,7 +1,5 @@
 package com.volhovm.mathlogic.propositional
 
-import Proofs._
-
 /**
  * @author volhovm
  *         Created on 10/7/14
@@ -9,35 +7,45 @@ import Proofs._
 
 // self-documenting i suppose
 object IOUtil {
-  def expressions(fileName: String): Proof =
+  // In
+  def getP(fileName: String): Proof =
     scala.io.Source.fromFile(fileName).getLines().toList.map((a: String) => new ExpressionParser(a).inputLine.run().get)
 
-  def annotatedExpressions(fileName: String): AProof =
-    Annotator.annotate(expressions(fileName))
+  def getAP(fileName: String): AProof =
+    Annotator.annotate(getP(fileName))
 
-  def stringAnnotatedExpressions(fileName: String): List[String] = {
-    val proof = expressions(fileName)
-    Annotator.annotateString(proof, proof.foldRight(0)({(e1, e2) => math.max(e1, e2)}))
-  }
-
-  def printWithIndexes[A](list: List[A], fromIndex: Int): Unit =
-    (Stream.from(fromIndex) zip list).foreach({a => println(a._1.toString + ". " + a._2.toString)})
-
-  def getDerivation(fileName: String): Derivation = {
+  def getD(fileName: String): Derivation = {
     val list = scala.io.Source.fromFile(fileName).getLines().toList
     (new ExpressionParser(list.head).derivationInputLine.run().get._1, list.tail.map((a: String) => new ExpressionParser(a).inputLine.run().get))
   }
 
-  def printDerivation(derivation: Derivation): Unit =
-    (List[String](derivation._1.mkString(", ") + " |- " + derivation._2.last.toString) ::: derivation._2.map(e => e.toString)).foreach(println)
+  def getAD(fileName: String): ADerivation =
+    Annotator.annotateDerivation(getD(fileName))
 
-  def annotateDerivation(derivation: Derivation): ADerivation = (derivation._1, Annotator.annotate(derivation._2, Annotator.contextState(derivation._1)))
 
-  def deductionApply(d: Derivation): Derivation =
-    (d._1.tail, annotateDerivation(d)._2.map {
-      case (e, _) if e == d._1.head => ident(e)
-      case (e, Axiom(n)) => deduction1(e, d._1.head)
-      case (e, Assumption()) => deduction1(e, d._1.head)
-      case (e, ModusPonens(n, m)) => deduction2(e, d._1.head, d._2(n), d._2(m)) // looks like I haven't messed up with indexes, but I'm not sure
-    }.flatten)
+
+  // Out
+  def printP(proof: Proof) = proof.foreach(println)
+  def printAP(proof: AProof) = {
+    val margin = proof.foldRight(0)((e, n) => math.max(e._1, n))
+    (Stream.from(1) zip proof).foreach(e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2)))
+  }
+
+  def printD(derivation: Derivation): Unit = {
+    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString)
+    printP(derivation._2)
+  }
+
+  def printAD(derivation: ADerivation): Unit = {
+    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString)
+    printAP(derivation._2)
+  }
+
+  // Performance
+  def stringAnnotatedExpressions(fileName: String): List[String] = {
+    val proof = getP(fileName)
+    Annotator.annotateGeneric(proof, Annotator.emptyState[String],
+    {(x, c, l) => (l + ". %-" + (proof.foldRight(0)(math.max(_, _)) + 10) + "s%-20s").format(x, c)}
+    )
+  }
 }

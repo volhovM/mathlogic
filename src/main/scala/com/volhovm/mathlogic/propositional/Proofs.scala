@@ -7,7 +7,6 @@ package com.volhovm.mathlogic.propositional
 
 object Proofs {
   // Unannoteted: //
-//////////////////////////////////////////////////////////
   def ident(e: Expr): Proof =
     List[Expr](
       e --> (e --> e),
@@ -30,11 +29,13 @@ object Proofs {
      (alpha -->(expr1 --> e)) --> (alpha --> e),
      alpha --> e
     )
+
   //TODO add more
 
-  // Annoteted: //
-//////////////////////////////////////////////////////////
 
+
+  // Annoteted: //
+  // TODO erase it
   def identA(e: Expr, line: Int): AProof =
     List[(Expr, Annotation)](
       (e --> (e --> e), Axiom(1)),

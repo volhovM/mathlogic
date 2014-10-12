@@ -66,17 +66,16 @@ object Annotator {
    * @param state - state to provide if you have some context, default is emptyState
    * @return - annotated proof
    */
-  def annotate(exprs: Proof, state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]) = annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
+  def annotate(exprs: Proof, state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof = annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
 
   /**
-   * The method for simple annotation that returns the list of strings ready for output, formatted in the proper way
-   * @param exprs - expressions to annotate
-   * @param margin - maximum distance from the longest expression to annotation column
-   * @param state - state to provide if you have some context, default in emptyState
-   * @return - list of strings in format "line. expression #margin# annotation"
+   * Returns annotated derivation
+   * @param derivation - derivotion to annotate
+   * @return - annotated derivation
    */
-  def annotateString(exprs: Proof, margin: Int, state: State[String] = emptyState[String]) =
-    annotateGeneric(exprs, emptyState[String], {(x, construction, line) => (line + ". %-" + (margin + 10) + "s%-20s").format(x, construction)})
+  def annotateDerivation(derivation: Derivation): ADerivation = (derivation._1, annotate(derivation._2, contextState(derivation._1)))
+
+
 
   /**
    * The method that matches expression and returns it's annotation if succeeded or Fault() otherwise
@@ -115,7 +114,7 @@ object Annotator {
    * This method updates state due to needed changes
    * @param state - state to modify
    * @param line - current line
-   * @param x - current expression
+   * @param e - current expression
    * @param annotation - annotation to x
    * @param wrapper - function from annotateGeneric
    * @tparam A - see State[A]
