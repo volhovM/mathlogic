@@ -1,6 +1,9 @@
 package com.volhovm.mathlogic
 
-import com.volhovm.mathlogic.propositional.IOUtil._
+import java.io.PrintWriter
+
+import propositional._
+import IOUtil._
 
 /**
  * @author volhovm
@@ -9,5 +12,8 @@ import com.volhovm.mathlogic.propositional.IOUtil._
 
 // Task 1
 object ProofChecker {
-  def main(args: Array[String]): Unit = stringAnnotatedExpressions("simpletest.in").foreach(println)
+  def main(args: Array[String]): Unit = verdict(getAP("maxtest.in")) match {
+    case -1 => print("Доказательство корректно.")
+    case n  => print("Доказательство некорректно начиная с " + n + " высказывания.")
+  }
 }

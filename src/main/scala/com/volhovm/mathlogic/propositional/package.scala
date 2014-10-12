@@ -36,6 +36,11 @@ package object propositional {
   def shortenAP(proof: AProof): Proof = shrt(proof)
   def shortenAD(derivation: ADerivation): Derivation = (derivation._1, shrt(derivation._2))
 
+  def verdict(proof: AProof) = proof.takeWhile(_._2 match { case Fault() => false; case _ => true}) match {
+    case a if a.length == proof.length => -1
+    case a => a.length + 1
+  }
+
   import Proofs._
   def deductionApply(d: Derivation): Derivation =
     shortenD(if (d._1.isEmpty) d else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
