@@ -42,8 +42,10 @@ package object propositional {
   }
 
   import Proofs._
+
   def deductionApply(d: Derivation): Derivation =
-    shortenD(if (d._1.isEmpty) d else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
+    shortenD(if (d._1.isEmpty) d
+    else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
       case (e, _) if e == d._1.head => ident(e)
       case (e, Axiom(n)) => deduction1(e, d._1.head)
       case (e, Assumption()) => deduction1(e, d._1.head)
@@ -55,4 +57,16 @@ package object propositional {
       case a --> b => shortenD((a :: d._1, d._2.dropRight(1) :+ (a --> b) :+ a :+ b))
       case _ => d
     }
+
+  //  def eval(expr: Expr, vars: Boolean*) = expr match {
+  //    case Var(a) => vars[]
+  //  }
+//  def makeProof(expr: Expr): Proof = expr match {
+//    case a ||| b => (eval(a), eval(b)) match {
+//      case (true, true) => ???
+//      case (true, false) => ???
+//      case (false, true) => ???
+//      case (false, false) => ???
+//    }
+//  }
 }

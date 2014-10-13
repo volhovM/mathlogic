@@ -16,7 +16,7 @@ object IOUtil {
 
   def getD(fileName: String): Derivation = {
     val list = scala.io.Source.fromFile(fileName).getLines().toList
-    (new ExpressionParser(list.head).derivationInputLine.run().get._1, list.tail.map((a: String) => new ExpressionParser(a).inputLine.run().get))
+    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse, list.tail.map((a: String) => new ExpressionParser(a).inputLine.run().get))
   }
 
   def getAD(fileName: String): ADerivation =

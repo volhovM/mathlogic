@@ -16,6 +16,7 @@ object Proofs {
       e --> e
     )
 
+
   def deduction1(e: Expr, alpha: Expr): Proof =
     List[Expr](
       e,
