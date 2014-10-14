@@ -12,16 +12,16 @@ package object propositional {
   type Derivation = (Context, Proof)
   type ADerivation = (Context, AProof)
 
+  // TODO Make it work
   implicit def l(expr: Expr): Int = expr match {
     case Var(a) => 1
-    case !!(a) => l(a) + 3
-    case Var(_) --> Var(_) => 4
-    case Var(_) &&& Var(_) => 3
-    case Var(_) ||| Var(_) => 3
-    case a --> b => l(a) + l(b) + 6
-    case a &&& b => l(a) + l(b) + 5
-    case a ||| b => l(a) + l(b) + 5
+    case ¬(a) => l(a) + 1
+    case a -> b => l(a) + l(b) + 4
+    case a & b => l(a) + l(b) + 3
+    case a V b => l(a) + l(b) + 3
   }
+
+//  implicit def l(expr: Expr): Int = expr.toString.length
 
   private def shrt(proof: AProof): Proof =
     proof.last._2 match {
@@ -54,7 +54,7 @@ package object propositional {
 
   def deductionUnapply(d: Derivation): Derivation =
     d._2.last match {
-      case a --> b => shortenD((a :: d._1, d._2.dropRight(1) :+ (a --> b) :+ a :+ b))
+      case a -> b => shortenD((a :: d._1, d._2.dropRight(1) :+ (a -> b) :+ a :+ b))
       case _ => d
     }
 

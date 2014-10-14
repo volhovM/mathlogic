@@ -87,16 +87,16 @@ object Annotator {
   private def getConstructionType[A](x: Expr, state: State[A]): Annotation
   = (x: @switch) match {
       // Axioms
-    case ((a --> b) --> ((c --> (d --> e)) --> (f --> g))) if a == c && b == d && e == g && a == f => Axiom(2)
-    case ((a --> b) --> ((c --> d) --> ((e ||| f) --> g))) if a == e && b == d && c == f && d == g => Axiom(8)
-    case ((a --> b) --> ((c --> !!(d)) --> !!(e))) if a == c && b == d && a == e => Axiom(9)
-    case (a --> (b --> (c &&& d))) if a == c && b == d => Axiom(3)
-    case ((a &&& b) --> c) if a == c => Axiom(4)
-    case ((a &&& b) --> c) if b == c => Axiom(5)
-    case (a --> (b ||| c)) if a == b => Axiom(6)
-    case (a --> (b ||| c)) if a == c => Axiom(7)
-    case (!!(!!(a)) --> b) if a == b => Axiom(10)
-    case (a --> (b --> c)) if a == c => Axiom(1)
+    case ((a -> b) -> ((c -> (d -> e)) -> (f -> g))) if a == c && b == d && e == g && a == f => Axiom(2)
+    case ((a -> b) -> ((c -> d) -> ((e V f) -> g))) if a == e && b == d && c == f && d == g => Axiom(8)
+    case ((a -> b) -> ((c -> ¬(d)) -> ¬(e))) if a == c && b == d && a == e => Axiom(9)
+    case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
+    case ((a & b) -> c) if a == c => Axiom(4)
+    case ((a & b) -> c) if b == c => Axiom(5)
+    case (a -> (b V c)) if a == b => Axiom(6)
+    case (a -> (b V c)) if a == c => Axiom(7)
+    case (¬(¬(a)) -> b) if a == b => Axiom(10)
+    case (a -> (b -> c)) if a == c => Axiom(1)
     case a if state._3.contains(a) => Assumption()
     case a if state._2.contains(a) => state._2.get(a) match {
       case Some(set) if set.nonEmpty =>
@@ -123,7 +123,7 @@ object Annotator {
   private def wrap[A](state: State[A], line: Int, e: Expr, annotation: Annotation, wrapper: (Expr, Annotation, Int) => A): State[A]
   = (state._1.+(e -> ((annotation, line))),
     e match {
-      case y: --> =>
+      case y: -> =>
         state._2.addBinding(y.rhs, (y.lhs, line))
       case _ => state._2
     },
