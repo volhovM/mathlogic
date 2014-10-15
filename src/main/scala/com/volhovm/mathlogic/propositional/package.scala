@@ -15,7 +15,7 @@ package object propositional {
   // TODO Make it work
   implicit def l(expr: Expr): Int = expr match {
     case Var(a) => 1
-    case ¬(a) => l(a) + 1
+    case !!(a) => l(a) + 1
     case a -> b => l(a) + l(b) + 4
     case a & b => l(a) + l(b) + 3
     case a V b => l(a) + l(b) + 3
