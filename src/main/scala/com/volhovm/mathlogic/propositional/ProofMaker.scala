@@ -43,20 +43,20 @@ object ProofMaker {
   }
 
   private def foo(x: Expr, y: Expr, measure: List[(Char, Boolean)],
-                  a: (Expr, Expr) => Proof,
-                  b: (Expr, Expr) => Proof,
-                  c: (Expr, Expr) => Proof,
-                  d: (Expr, Expr) => Proof): Derivation = {
+                  a: (Expr, Expr) => Derivation,
+                  b: (Expr, Expr) => Derivation,
+                  c: (Expr, Expr) => Derivation,
+                  d: (Expr, Expr) => Derivation): Derivation = {
     val ex = eval(x, measure)
     val ey = eval(y, measure)
     ex match {
       case true   => ey match {
-        case true   => (List[Expr](x, y)        , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ a(x, y))
-        case false  => (List[Expr](x, !!(y))    , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ b(x, y))
+        case true   => (List[Expr](x, y)        , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ a(x, y)._2)
+        case false  => (List[Expr](x, !!(y))    , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ b(x, y)._2)
       }
       case false  => ey match {
-        case true   => (List[Expr](!!(x), y)    , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ c(x, y))
-        case false  => (List[Expr](!!(x), !!(y)), makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ d(x, y))
+        case true   => (List[Expr](!!(x), y)    , makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ c(x, y)._2)
+        case false  => (List[Expr](!!(x), !!(y)), makeDerivation(measure, x)._2 ++ makeDerivation(measure, y)._2 ++ d(x, y)._2)
       }
     }
   }
@@ -65,8 +65,8 @@ object ProofMaker {
     case a -> b => foo(a, b, measure, implicationTT, implicationTF, implicationFT, implicationFF)
     case a V b => foo(a, b, measure, disjunctionTT, disjunctionTF, disjunctionFT, disjunctionFF)
     case a & b => foo(a, b, measure, conjunctionTT, conjunctionTF, conjunctionFT, conjunctionFF)
-    case !!(a)  =>  if (eval(a, measure)) (List(a), makeDerivation(measure, a)._2 ++ negationT(a))
-                    else (List(!!(a)), makeDerivation(measure, a)._2 ++ negationF(a))
+    case !!(a)  =>  if (eval(a, measure)) (List(a), makeDerivation(measure, a)._2 ++ negationT(a)._2)
+                    else (List(!!(a)), makeDerivation(measure, a)._2 ++ negationF(a)._2)
     case Var(_) => (List(e), List(e))
   }
 

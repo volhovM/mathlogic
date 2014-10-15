@@ -75,8 +75,6 @@ object Annotator {
    */
   def annotateDerivation(derivation: Derivation): ADerivation = (derivation._1, annotate(derivation._2, contextState(derivation._1)))
 
-
-
   /**
    * The method that matches expression and returns it's annotation if succeeded or Fault() otherwise
    * @param x - expression to examine

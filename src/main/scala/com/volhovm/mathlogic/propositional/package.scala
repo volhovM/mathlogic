@@ -21,8 +21,6 @@ package object propositional {
     case a V b => l(a) + l(b) + 3
   }
 
-//  implicit def l(expr: Expr): Int = expr.toString.length
-
   private def shrt(proof: AProof): Proof =
     proof.last._2 match {
       case ModusPonens(i, j) => shrt(proof.take(i + 1)) ++ shrt(proof.take(j + 1)) ++ List(proof.last._1)
@@ -47,8 +45,8 @@ package object propositional {
     shortenD(if (d._1.isEmpty) d
     else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
       case (e, _) if e == d._1.head => ident(e)
-      case (e, Axiom(n)) => deduction1(e, d._1.head)
-      case (e, Assumption()) => deduction1(e, d._1.head)
+      case (e, Axiom(n)) => deduction1(e, d._1.head)._2
+      case (e, Assumption()) => deduction1(e, d._1.head)._2
       case (e, ModusPonens(n, m)) => deduction2(e, d._1.head, d._2(n), d._2(m)) // looks like I haven't messed up with indexes, but I'm not sure
     }.flatten))
 
@@ -57,16 +55,4 @@ package object propositional {
       case a -> b => shortenD((a :: d._1, d._2.dropRight(1) :+ (a -> b) :+ a :+ b))
       case _ => d
     }
-
-  //  def eval(expr: Expr, vars: Boolean*) = expr match {
-  //    case Var(a) => vars[]
-  //  }
-//  def makeProof(expr: Expr): Proof = expr match {
-//    case a ||| b => (eval(a), eval(b)) match {
-//      case (true, true) => ???
-//      case (true, false) => ???
-//      case (false, true) => ???
-//      case (false, false) => ???
-//    }
-//  }
 }
