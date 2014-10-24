@@ -80,7 +80,23 @@ object Proofs {
   def disjunctionTT(a: Expr, b: Expr): Derivation = (List(a, b), List(a, a -> (a V b), a V b))
   def disjunctionTF(a: Expr, b: Expr): Derivation = (List(a, !!(b)), List(a, a -> (a V b), a V b))
   def disjunctionFT(a: Expr, b: Expr): Derivation = (List(!!(a), b), List(b, b -> (a V b), a V b))
-  def disjunctionFF(a: Expr, b: Expr): Derivation = (List(!!(a), !!(b)), ???) // back contraposition (!!b -> !!a) -> (a -> b) needed :c
+  def disjunctionFF(a: Expr, b: Expr): Derivation = (List(!!(a), !!(b)), List(
+    !!(a),
+    !!(b),
+    (a V b -> a) -> ((a V b -> !!(a)) -> !!(a V b)),
+    !!(a) -> ((a V b) -> !!(a)),
+    (a V b) -> !!(a)) ++
+    deductionApply(List(!!(a), !!(b), a V b), List(
+      !!(a),
+      !!(b)) ++
+      ident(a) ++ List(
+      b -> a, // TODO Prove that
+      (a -> a) -> ((b -> a) -> (a V b -> a)),
+      (b -> a) -> (a V b -> a)
+      (a V b) -> a)) ++ List(
+    (a V b -> !!(a)) -> !!(a V b),
+    !!(a V b)
+  )) // 9 axiom (a V b -> a) -> (a V b -> !a)
   def conjunctionTT(a: Expr, b: Expr): Derivation = (List(a, b), List(a, b, a -> (b -> (a & b)), b -> (a & b), a & b))
   def conjunctionTF(a: Expr, b: Expr): Derivation = (List(a, !!(b)), List(
     a & b -> b,
@@ -113,16 +129,28 @@ object Proofs {
   def implicationTF(a: Expr, b: Expr): Derivation = (List(a, !!(b)), List(
     a,
     !!(b),
-    !!(b) -> a -> !!(b),
-    a -> !!(b),
-    (a -> !!(b)) -> ((a -> b) -> !!(a)), // FIXME TODO This must be proved (th. of deduction with context swaps maybe)
-    (a -> b) -> !!(a),
-    a -> (a -> b) -> a,
-    (a -> b) -> a,
-    ((a -> b) -> !!(a)) -> (((a -> b) -> a) -> !!(a -> b))
+    !!(b) -> ((a -> b) -> !!(b)),
+    (a -> b) -> !!(b)) ++
+    deductionApply(List(a, !!(b), a -> b), List(a, a -> b, b))._2 ++ List(
+    ((a -> b) -> b) -> (((a -> b) -> !!(b)) -> !!(a -> b)),
+    ((a -> b) -> !!(b)) -> !!(a -> b),
+    !!(a -> b)
   ))
   def implicationFT(a: Expr, b: Expr): Derivation = (List(!!(a), b), List(b -> (a -> b), b, a -> b))
-  def implicationFF(a: Expr, b: Expr): Derivation = (List(!!(a), !!(b)), ???)
+  def implicationFF(a: Expr, b: Expr): Derivation = (List(!!(a), !!(b)), deductionApply(List(!!(a), !!(b), a), List(
+    !!(a),
+    !!(b),
+    a,
+    (!!(b) -> a) -> ((!!(b) -> !!(a)) -> !!(!!(b))),
+    a -> (!!(b) -> a),
+    !!(b) -> a,
+    !!(b) -> (!!(b) -> !!(a)),
+    !!(b) -> !!(a),
+    (!!(b) -> !!(a)) -> !!(!!(b)),
+    !!(!!(b)),
+    !!(!!(b)) -> b,
+    b
+  ))) // !a, !b, a |- b
   def negationT(a: Expr): Derivation = (List(a), List(
     a,
     a -> (!!(a) -> a),
