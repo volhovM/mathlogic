@@ -15,7 +15,7 @@ package object propositional {
   // TODO Make it work
   implicit def l(expr: Expr): Int = expr match {
     case Var(a) => 1
-    case !!(a) => l(a) + 1
+    case ¬(a) => l(a) + 1
     case a -> b => l(a) + l(b) + 4
     case a & b => l(a) + l(b) + 3
     case a V b => l(a) + l(b) + 3
@@ -29,10 +29,11 @@ package object propositional {
       // let it fall if fault
     }
 
-  def shortenP(proof: Proof): Proof = shrt(Annotator.annotate(proof))
-  def shortenD(derivation: Derivation): Derivation = (derivation._1, shrt(Annotator.annotateDerivation(derivation)._2))
-  def shortenAP(proof: AProof): Proof = shrt(proof)
-  def shortenAD(derivation: ADerivation): Derivation = (derivation._1, shrt(derivation._2))
+  // if implicit, we have no second chance
+  implicit def shortenP(proof: Proof): Proof = shrt(Annotator.annotate(proof))
+  implicit def shortenD(derivation: Derivation): Derivation = (derivation._1, shrt(Annotator.annotateDerivation(derivation)._2))
+  implicit def shortenAP(proof: AProof): Proof = shrt(proof)
+  implicit def shortenAD(derivation: ADerivation): Derivation = (derivation._1, shrt(derivation._2))
 
   def verdict(proof: AProof) = proof.takeWhile(_._2 match { case Fault() => false; case _ => true}) match {
     case a if a.length == proof.length => -1
@@ -40,6 +41,8 @@ package object propositional {
   }
 
   import Proofs._
+
+  def mkD(d: Derivation): Derivation = (d._1.reverse.distinct, d._2)
 
   def deductionApply(d: Derivation): Derivation =
     shortenD(if (d._1.isEmpty) d

@@ -30,13 +30,15 @@ object IOUtil {
     (Stream.from(1) zip proof).foreach(e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2)))
   }
 
+  def header[A](derivation: (List[A], List[A])): String = derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString
+
   def printD(derivation: Derivation): Unit = {
-    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString)
+    println(header(derivation))
     printP(derivation._2)
   }
 
   def printAD(derivation: ADerivation): Unit = {
-    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last._1.toString)
+    println(header(derivation))
     printAP(derivation._2)
   }
 
