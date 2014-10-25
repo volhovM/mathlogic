@@ -23,7 +23,6 @@ object IOUtil {
     Annotator.annotateDerivation(getD(fileName))
 
 
-
   // Out
   def printP(proof: Proof) = proof.foreach(println)
   def printAP(proof: AProof) = {
@@ -37,7 +36,7 @@ object IOUtil {
   }
 
   def printAD(derivation: ADerivation): Unit = {
-    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString)
+    println(derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last._1.toString)
     printAP(derivation._2)
   }
 
