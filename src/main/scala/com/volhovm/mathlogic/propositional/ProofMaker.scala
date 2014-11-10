@@ -23,9 +23,9 @@ object ProofMaker {
         deductionApply(x)._2 ++
           deductionApply(y)._2 ++
           tertiumNonDatur(p) ++ List[Expr](
-          (p -> a) -> ((¬(p) -> a) -> ((p V ¬(p)) -> a)),
-          (¬(p) -> a) -> ((p V ¬(p)) -> a),
-          (p V ¬(p)) -> a,
+          (p -> a) -> ((!!(p) -> a) -> ((p V !!(p)) -> a)),
+          (!!(p) -> a) -> ((p V !!(p)) -> a),
+          (p V !!(p)) -> a,
           a
         ))
     }
@@ -35,7 +35,7 @@ object ProofMaker {
     case a -> b => if (eval(a, vars) && !eval(b, vars)) false else true
     case a V b => eval(a, vars) | eval(b, vars)
     case a & b => eval(a, vars) & eval(b, vars)
-    case ¬(a) => !eval(a, vars)
+    case !!(a) => !eval(a, vars)
     case Var(a) => vars.find(c => c._1 == a).get._2
   }
 
@@ -43,7 +43,7 @@ object ProofMaker {
     case a -> b => countVars(a, s) ++ countVars(b, s)
     case a V b => countVars(a, s) ++ countVars(b, s)
     case a & b => countVars(a, s) ++ countVars(b, s)
-    case ¬(a) => countVars(a, s)
+    case !!(a) => countVars(a, s)
     case Var(a) => if (!s.contains(a)) s + a else s
   }
 
@@ -53,7 +53,7 @@ object ProofMaker {
   }
 
   implicit private def measureToContext(measure: List[(Char, Boolean)]): List[Expr] =
-    measure.map(a => if (a._2) Var(a._1) else ¬(Var(a._1)))
+    measure.map(a => if (a._2) Var(a._1) else !!(Var(a._1)))
 
   private def foo(x: Expr, y: Expr, measure: List[(Char, Boolean)],
                   a: (Expr, Expr) => Derivation,
@@ -65,11 +65,11 @@ object ProofMaker {
     mkD(ex match {
       case true => ey match {
         case true => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++ ifNotVar(y, makeDerivation(measure, y)._2) ++ a(x, y)._2)
-        case false => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++ makeDerivation(measure, ¬(y))._2 ++ b(x, y)._2)
+        case false => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++ makeDerivation(measure, !!(y))._2 ++ b(x, y)._2)
       }
       case false => ey match {
-        case true => (measure, makeDerivation(measure, ¬(x))._2 ++ ifNotVar(y, makeDerivation(measure, y)._2) ++ c(x, y)._2)
-        case false => (measure, makeDerivation(measure, ¬(x))._2 ++ makeDerivation(measure, ¬(y))._2 ++ d(x, y)._2)
+        case true => (measure, makeDerivation(measure, !!(x))._2 ++ ifNotVar(y, makeDerivation(measure, y)._2) ++ c(x, y)._2)
+        case false => (measure, makeDerivation(measure, !!(x))._2 ++ makeDerivation(measure, !!(y))._2 ++ d(x, y)._2)
       }
     })
   }
@@ -78,7 +78,7 @@ object ProofMaker {
     case a -> b => foo(a, b, measure, implicationTT, implicationTF, implicationFT, implicationFF)
     case a V b => foo(a, b, measure, disjunctionTT, disjunctionTF, disjunctionFT, disjunctionFF)
     case a & b => foo(a, b, measure, conjunctionTT, conjunctionTF, conjunctionFT, conjunctionFF)
-    case ¬(a) => if (eval(a, measure)) (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
+    case !!(a) => if (eval(a, measure)) (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
     else (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationF(a)._2)
     case Var(_) => (List(e), List(e))
   }

@@ -18,14 +18,14 @@ object ProofMakerTest extends App {
    val tautologies: List[Expr] = List(
      a -> a,
      b -> (a -> b),
-     b V ¬(b),
-     ¬(¬(b)) -> b,
-     ¬(a & ¬(a)),
+     b V !!(b),
+     !!(!!(b)) -> b,
+     !!(a & !!(a)),
      a -> (b -> (a & b)),
      (a & b) -> a,
      (b & a) -> b,
      a -> (a V b),
-     (c & ¬(d & c) -> c -> b) V (a V ¬(a)) // IT WORKS OH MY GOD
+     (c & !!(d & c) -> c -> b) V (a V !!(a)) // IT WORKS OH MY GOD
    )
    tautologies.foreach(x => { assert(verdict(annotate(makeProof(x))) == -1); println("Passed: " + x) })
  }

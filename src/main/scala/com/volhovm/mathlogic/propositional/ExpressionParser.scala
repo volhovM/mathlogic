@@ -27,7 +27,7 @@ class ExpressionParser(val input: ParserInput) extends Parser {
   private def D: Rule1[Expr] = rule { variable | negate | parenth }
   private def variable: Rule1[Expr] = rule { capture(upper) ~> ((a: String) => Var(a(0))) }
   private def upper: Rule0 = rule { anyOf("ABCPYFGRLOEUIDHTNSQJKXMWVZ") }
-  private def negate: Rule1[Expr] = rule { "!" ~ D ~> propositional.¬ }
+  private def negate: Rule1[Expr] = rule { "!" ~ D ~> propositional.!! }
   private def parenth: Rule1[Expr] = rule { "(" ~ A ~ ")" }
 }
 
