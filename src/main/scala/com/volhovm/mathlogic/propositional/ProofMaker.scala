@@ -31,31 +31,31 @@ object ProofMaker {
     }
   }
 
-  private def eval(e: Expr, vars: List[(Char, Boolean)]): Boolean = e match {
+  private def eval(e: Expr, vars: List[(String, Boolean)]): Boolean = e match {
     case a -> b => if (eval(a, vars) && !eval(b, vars)) false else true
     case a V b => eval(a, vars) | eval(b, vars)
     case a & b => eval(a, vars) & eval(b, vars)
     case !!(a) => !eval(a, vars)
-    case Var(a) => vars.find(c => c._1 == a).get._2
+    case Pred(a) => vars.find(c => c._1 == a).get._2
   }
 
-  private def countVars(e: Expr, s: Set[Char] = Set[Char]()): Set[Char] = e match {
+  private def countVars(e: Expr, s: Set[String] = Set[String]()): Set[String] = e match {
     case a -> b => countVars(a, s) ++ countVars(b, s)
     case a V b => countVars(a, s) ++ countVars(b, s)
     case a & b => countVars(a, s) ++ countVars(b, s)
     case !!(a) => countVars(a, s)
-    case Var(a) => if (!s.contains(a)) s + a else s
+    case Pred(a) => if (!s.contains(a)) s + a else s
   }
 
   private def ifNotVar[A](e: Expr, a: List[A]): List[A] = e match {
-    case Var(_) => Nil
+    case Pred(_) => Nil
     case _ => a
   }
 
-  implicit private def measureToContext(measure: List[(Char, Boolean)]): List[Expr] =
-    measure.map(a => if (a._2) Var(a._1) else !!(Var(a._1)))
+  implicit private def measureToContext(measure: List[(String, Boolean)]): List[Expr] =
+    measure.map(a => if (a._2) Pred(a._1) else !!(Pred(a._1)))
 
-  private def foo(x: Expr, y: Expr, measure: List[(Char, Boolean)],
+  private def foo(x: Expr, y: Expr, measure: List[(String, Boolean)],
                   a: (Expr, Expr) => Derivation,
                   b: (Expr, Expr) => Derivation,
                   c: (Expr, Expr) => Derivation,
@@ -74,16 +74,16 @@ object ProofMaker {
     })
   }
 
-  private def makeDerivation(measure: List[(Char, Boolean)], e: Expr): Derivation = e match {
+  private def makeDerivation(measure: List[(String, Boolean)], e: Expr): Derivation = e match {
     case a -> b => foo(a, b, measure, implicationTT, implicationTF, implicationFT, implicationFF)
     case a V b => foo(a, b, measure, disjunctionTT, disjunctionTF, disjunctionFT, disjunctionFF)
     case a & b => foo(a, b, measure, conjunctionTT, conjunctionTF, conjunctionFT, conjunctionFF)
     case !!(a) => if (eval(a, measure)) (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
     else (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationF(a)._2)
-    case Var(_) => (List(e), List(e))
+    case Pred(_) => (List(e), List(e))
   }
 
-  private def makeTree(e: Expr, list: List[Char], out: List[(Char, Boolean)] = List[(Char, Boolean)]()): BTree[Derivation] =
+  private def makeTree(e: Expr, list: List[String], out: List[(String, Boolean)] = List[(String, Boolean)]()): BTree[Derivation] =
     list match {
       case x :: xs => Node(makeTree(e, xs, (x, true) :: out), makeTree(e, xs, (x, false) :: out))
       case Nil => Leaf(makeDerivation(out.reverse, e))

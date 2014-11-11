@@ -11,10 +11,10 @@ import com.volhovm.mathlogic.propositional._
 
 // TODO arrange special dir fer tests
 object ProofMakerTest extends App {
-   val a = Var('a')
-   val b = Var('b')
-   val c = Var('c')
-   val d = Var('d')
+   val a = Pred("a")
+   val b = Pred("b")
+   val c = Pred("c")
+   val d = Pred("d")
    val tautologies: List[Expr] = List(
      a -> a,
      b -> (a -> b),

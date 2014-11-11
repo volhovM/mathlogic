@@ -6,15 +6,16 @@ package com.volhovm.mathlogic
  */
 
 package object propositional {
+  def hole = ???
+
   type Proof = List[Expr]
   type AProof = List[(Expr, Annotation)]
   type Context = List[Expr]
   type Derivation = (Context, Proof)
   type ADerivation = (Context, AProof)
 
-  // TODO Make it work
   implicit def l(expr: Expr): Int = expr match {
-    case Var(a) => 1
+    case Pred(a) => 1
     case !!(a) => l(a) + 1
     case a -> b => l(a) + l(b) + 4
     case a & b => l(a) + l(b) + 3

@@ -9,14 +9,14 @@ package com.volhovm.mathlogic.propositional
 object IOUtil {
   // In
   def getP(fileName: String): Proof =
-    scala.io.Source.fromFile(fileName).getLines().toList.map((a: String) => new ExpressionParser(a).inputLine.run().get)
+    scala.io.Source.fromFile(fileName).getLines().toList.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get)
 
   def getAP(fileName: String): AProof =
     Annotator.annotate(getP(fileName))
 
   def getD(fileName: String): Derivation = {
     val list = scala.io.Source.fromFile(fileName).getLines().toList
-    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse, list.tail.map((a: String) => new ExpressionParser(a).inputLine.run().get))
+    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse, list.tail.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get))
   }
 
   def getAD(fileName: String): ADerivation =
