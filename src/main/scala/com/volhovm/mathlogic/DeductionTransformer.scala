@@ -10,5 +10,5 @@ import com.volhovm.mathlogic.propositional._
 
 // Task 2
 object DeductionTransformer {
-  def main(args: Array[String]) = printD(deductionApply(getD("deduction.in")))
+  def main(args: Array[String]): Unit = printD(deductionApply(getD("deduction.in")))
 }

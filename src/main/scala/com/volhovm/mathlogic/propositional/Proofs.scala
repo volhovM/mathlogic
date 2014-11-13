@@ -78,8 +78,10 @@ object Proofs {
       )
 
   def disjunctionTT(a: Expr, b: Expr): Derivation = mkD(List(a, b), List(a, a -> (a V b), a V b))
-  def disjunctionTF(a: Expr, b: Expr): Derivation = mkD(List(a, !!(b)), List(a, a -> (a V b), a V b))
-  def disjunctionFT(a: Expr, b: Expr): Derivation = mkD(List(!!(a), b), List(b, b -> (a V b), a V b))
+  def disjunctionTF(a: Expr, b: Expr): Derivation =
+    mkD(List(a, !!(b)), List(a, a -> (a V b), a V b))
+  def disjunctionFT(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), b), List(b, b -> (a V b), a V b))
   def disjunctionFF(a: Expr, b: Expr): Derivation = mkD(List(!!(a), !!(b)), List(
     !!(a),
     !!(b),
@@ -99,7 +101,8 @@ object Proofs {
     !!(a V b)
   ))
   // 9 axiom (a V b -> a) -> (a V b -> !a)
-  def conjunctionTT(a: Expr, b: Expr): Derivation = mkD(List(a, b), List(a, b, a -> (b -> (a & b)), b -> (a & b), a & b))
+  def conjunctionTT(a: Expr, b: Expr): Derivation =
+    mkD(List(a, b), List(a, b, a -> (b -> (a & b)), b -> (a & b), a & b))
   def conjunctionTF(a: Expr, b: Expr): Derivation = mkD(List(a, !!(b)), List(
     (a & b) -> b,
     !!(b),
@@ -138,8 +141,10 @@ object Proofs {
     ((a -> b) -> !!(b)) -> !!(a -> b),
     !!(a -> b)
   ))
-  def implicationFT(a: Expr, b: Expr): Derivation = mkD(List(!!(a), b), List(b -> (a -> b), b, a -> b))
-  def implicationFF(a: Expr, b: Expr): Derivation = mkD(List(!!(a), !!(b)), deductionApply(mkD(List(!!(a), !!(b), a), List(
+  def implicationFT(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), b), List(b -> (a -> b), b, a -> b))
+  def implicationFF(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), !!(b)), deductionApply(mkD(List(!!(a), !!(b), a), List(
     !!(a),
     !!(b),
     a,

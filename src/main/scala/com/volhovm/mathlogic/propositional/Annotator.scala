@@ -10,8 +10,7 @@ import scala.collection.mutable.{HashMap, MultiMap, Set}
  */
 
 object Annotator {
-  /**
-   * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
+  /** * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
    * @tparam A - type of List[A] you want to get.
    */
   private type State[A] = (CMap, MPMap, Context, List[A])
@@ -48,7 +47,8 @@ object Annotator {
    * see annotate and annotateString methods as examples
    * @param exprs - the proof (see Proof)
    * @param state - the state, needed for evaluation
-   * @param wrapper - the function that (for every expression) takes the Tuple3 and returns an A, accumulates it and returns a list of A
+   * @param wrapper - the function that (for every expression) takes the Tuple3
+   * and returns an A, accumulates it and returns a list of A
    * @param line - inner method param
    * @tparam A - the type parameter defining a list of what you want to get
    * @return - List[A]
@@ -56,37 +56,51 @@ object Annotator {
   def annotateGeneric[A](exprs: Proof,
                   state: State[A],
                   wrapper: (Expr, Annotation, Int) => A,
-                  line: Int = 0): List[A] = 
+                  line: Int = 0): List[A] =
     if (exprs.isEmpty) state._4.reverse
-    else annotateGeneric(exprs.tail, wrap(state, line, exprs.head, getConstructionType(exprs.head, state), wrapper), wrapper, line + 1)
+    else annotateGeneric(exprs.tail,
+                         wrap(state,
+                              line,
+                              exprs.head,
+                              getConstructionType(exprs.head, state),
+                              wrapper),
+                         wrapper,
+                         line + 1)
 
   /**
-   * Returns usual annotation (converts a list of expressions to list of pairs (expression, annotation))
+   * Returns usual annotation
+   * (converts a list of expressions to list of pairs (expression, annotation))
    * @param exprs - expressions to annotate
    * @param state - state to provide if you have some context, default is emptyState
    * @return - annotated proof
    */
-  def annotate(exprs: Proof, state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof = annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
+  def annotate(exprs: Proof,
+               state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof =
+    annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
 
   /**
    * Returns annotated derivation
    * @param derivation - derivotion to annotate
    * @return - annotated derivation
    */
-  def annotateDerivation(derivation: Derivation): ADerivation = (derivation._1, annotate(derivation._2, contextState(derivation._1)))
+  def annotateDerivation(derivation: Derivation): ADerivation =
+    (derivation._1, annotate(derivation._2, contextState(derivation._1)))
 
   /**
-   * The method that matches expression and returns it's annotation if succeeded or Fault() otherwise
+   * The method that matches expression and returns
+   * it's annotation if succeeded or Fault() otherwise
    * @param x - expression to examine
    * @param state - current state
    * @tparam A - see State[A]
    * @return - annotation type for expression x
    */
   private def getConstructionType[A](x: Expr, state: State[A]): Annotation
-  = (x: @switch) match {
+  = x match {
       // Axioms
-    case ((a -> b) -> ((c -> (d -> e)) -> (f -> g))) if a == c && b == d && e == g && a == f => Axiom(2)
-    case ((a -> b) -> ((c -> d) -> ((e V f) -> g))) if a == e && b == d && c == f && d == g => Axiom(8)
+    case ((a -> b) -> ((c -> (d -> e)) -> (f -> g)))
+        if a == c && b == d && e == g && a == f => Axiom(2)
+    case ((a -> b) -> ((c -> d) -> ((e V f) -> g)))
+        if a == e && b == d && c == f && d == g => Axiom(8)
     case ((a -> b) -> ((c -> !!(d)) -> !!(e))) if a == c && b == d && a == e => Axiom(9)
     case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
     case ((a & b) -> c) if a == c => Axiom(4)
@@ -118,7 +132,11 @@ object Annotator {
    * @tparam A - see State[A]
    * @return - new updated state
    */
-  private def wrap[A](state: State[A], line: Int, e: Expr, annotation: Annotation, wrapper: (Expr, Annotation, Int) => A): State[A]
+  private def wrap[A](state: State[A],
+                      line: Int,
+                      e: Expr,
+                      annotation: Annotation,
+                      wrapper: (Expr, Annotation, Int) => A): State[A]
   = (state._1.+(e -> ((annotation, line))),
     e match {
       case y: -> =>

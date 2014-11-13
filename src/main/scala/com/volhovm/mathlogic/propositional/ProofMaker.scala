@@ -1,6 +1,7 @@
 package com.volhovm.mathlogic.propositional
 
 import Proofs._
+import scala.language.implicitConversions
 
 /**
  * @author volhovm
