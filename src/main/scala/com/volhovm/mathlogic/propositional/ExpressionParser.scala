@@ -19,6 +19,8 @@ class ExpressionParser(val input: ParserInput) extends Parser {
       expression) ~> ((a: List[Expr], b: Expr) => (a, b)) ~
       EOI }
 
+  private def leftAssoc[A, B <: A](a: Rule1[A], b: (A, A) => B, divider: String): Rule1[B]
+    = rule { a ~ zeroOrMore(divider ~ a ~> b) }
   // Grammar
   // A = B "->" A | B
   // B = C {"|" C}*
@@ -27,13 +29,21 @@ class ExpressionParser(val input: ParserInput) extends Parser {
   def simpleInputLine: Rule1[Expr] = rule { expression ~ EOI }
   private def expression: Rule1[Expr] = rule { oneOrMore(disjunction).separatedBy("->") ~>
       ((a: Seq[V]) => a.reduceRight(->)) }
-  private def disjunction: Rule1[V] = rule { conjunction ~ zeroOrMore("|" ~ conjunction ~> V) }
-  private def conjunction: Rule1[&] = rule { unary ~ zeroOrMore("&" ~ unary ~> propositional.&) }
+  private def disjunction: Rule1[V] = leftAssoc(conjunction, propositional.V, "V")
+  private def conjunction: Rule1[&] = leftAssoc(unary, propositional.&, "&")
   private def unary: Rule1[Expr] =
     rule { predicate | negate | parenth |
-      ("@" ~ variable ~ unary ~> @@) | ("?" ~ variable ~ unary ~> ?) }
-  private def predicate: Rule1[Expr] = ???
-  private def variable: Rule1[Pred] = rule { capture(upper) ~> ((a: String) => Pred(a)) }
+            (variable ~ unary ~> ((a, b) => @@(a, b))) |
+            ("?" ~ variable ~ unary ~> ((a, b) => ?(a, b))) }
+  private def predicate: Rule1[Expr] =
+    rule { (capture(upper) ~
+              optional("(" ~ oneOrMore(term).separatedBy(",") ~ ")") ~>
+              ((a, b) => if (!b.isEmpty) Pred(a) else Pred(a, b.get: _*))) |
+            (term ~ "=" ~ term ~> propositional.==) }
+  private def term: Rule1[Expr] = leftAssoc(summable, propositional.+, "+")
+  private def summable: Rule1[Expr] = leftAssoc(mullable, propositional.*, "*")
+  private def mullable: Rule1[Expr] = ??? // переменная -- это нульместный функциональный символ???
+  private def variable: Rule1[Var] = rule { capture(lower) ~> ((a: String) => Var(a)) }
   private def upper: Rule0 = rule { anyOf("PYFGCRLAOEUIDHTNSQJKXBMWVZ") ~
       zeroOrMore(anyOf("0123456789")) }
   private def lower: Rule0 = rule { anyOf("pyfgcrlaoeuidhtnsqjkxbmwvz") ~

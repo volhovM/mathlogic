@@ -10,3 +10,4 @@ project/boot/
 .history
 .cache
 .idea/
+.ens*

@@ -13,6 +13,6 @@ scalacOptions in Test ++= Seq("-Yrangepos")
 // Read here for optional dependencies:
 // http://etorreborre.github.io/specs2/guide/org.specs2.guide.Runners.html#Dependencies
 
-scalacOptions ++= Seq("-feature", "-optimize")
+scalacOptions ++= Seq("-feature")
 
 resolvers ++= Seq("snapshots", "releases").map(Resolver.sonatypeRepo)
