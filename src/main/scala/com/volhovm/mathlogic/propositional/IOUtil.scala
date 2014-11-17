@@ -10,14 +10,17 @@ object IOUtil {
   def parseString(string: String) = new ExpressionParser(string).simpleInputLine.run().get
   // In
   def getP(fileName: String): Proof =
-    scala.io.Source.fromFile(fileName).getLines().toList.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get)
+    scala.io.Source.fromFile(fileName).getLines().toList.map(
+      (a: String) => new ExpressionParser(a).simpleInputLine.run().get
+    )
 
   def getAP(fileName: String): AProof =
     Annotator.annotate(getP(fileName))
 
   def getD(fileName: String): Derivation = {
     val list = scala.io.Source.fromFile(fileName).getLines().toList
-    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse, list.tail.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get))
+    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse,
+     list.tail.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get))
   }
 
   def getAD(fileName: String): ADerivation =
@@ -28,10 +31,13 @@ object IOUtil {
   def printP(proof: Proof) = proof.foreach(println)
   def printAP(proof: AProof) = {
     val margin = proof.foldRight(0)((e, n) => math.max(e._1, n))
-    (Stream.from(1) zip proof).foreach(e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2)))
+    (Stream.from(1) zip proof).foreach(
+      e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2))
+    )
   }
 
-  def header[A](derivation: (List[A], List[A])): String = derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString
+  def header[A](derivation: (List[A], List[A])): String =
+    derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString
 
   def printD(derivation: Derivation): Unit = {
     println(header(derivation))

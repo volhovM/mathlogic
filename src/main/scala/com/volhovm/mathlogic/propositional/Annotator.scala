@@ -14,10 +14,12 @@ object Annotator {
    * @tparam A - type of List[A] you want to get.
    */
   private type State[A] = (CMap, MPMap, Context, List[A])
+
   /**
    * CMap contains map from all left expression parts to pair (it's annotation, line)
    */
   private type CMap = Map[Expr, (Annotation, Int)]
+
   /**
    * For all expressions of type a --> b MPMap contains key-value of b -> a
    */
@@ -53,19 +55,22 @@ object Annotator {
    * @tparam A - the type parameter defining a list of what you want to get
    * @return - List[A]
    */
-  def annotateGeneric[A](exprs: Proof,
-                  state: State[A],
-                  wrapper: (Expr, Annotation, Int) => A,
-                  line: Int = 0): List[A] =
+  def annotateGeneric[A](
+      exprs: Proof,
+      state: State[A],
+      wrapper: (Expr, Annotation, Int) => A,
+      line: Int = 0): List[A] =
     if (exprs.isEmpty) state._4.reverse
-    else annotateGeneric(exprs.tail,
-                         wrap(state,
-                              line,
-                              exprs.head,
-                              getConstructionType(exprs.head, state),
-                              wrapper),
-                         wrapper,
-                         line + 1)
+    else annotateGeneric(
+      exprs.tail,
+      wrap(
+        state,
+        line,
+        exprs.head,
+        getConstructionType(exprs.head, state),
+        wrapper),
+      wrapper,
+      line + 1)
 
   /**
    * Returns usual annotation
@@ -74,8 +79,9 @@ object Annotator {
    * @param state - state to provide if you have some context, default is emptyState
    * @return - annotated proof
    */
-  def annotate(exprs: Proof,
-               state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof =
+  def annotate(
+      exprs: Proof,
+      state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof =
     annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
 
   /**
@@ -94,33 +100,35 @@ object Annotator {
    * @tparam A - see State[A]
    * @return - annotation type for expression x
    */
-  private def getConstructionType[A](x: Expr, state: State[A]): Annotation
-  = x match {
+  private def getConstructionType[A](x: Expr, state: State[A]): Annotation =
+    x match {
       // Axioms
-    case ((a -> b) -> ((c -> (d -> e)) -> (f -> g)))
-        if a == c && b == d && e == g && a == f => Axiom(2)
-    case ((a -> b) -> ((c -> d) -> ((e V f) -> g)))
-        if a == e && b == d && c == f && d == g => Axiom(8)
-    case ((a -> b) -> ((c -> !!(d)) -> !!(e))) if a == c && b == d && a == e => Axiom(9)
-    case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
-    case ((a & b) -> c) if a == c => Axiom(4)
-    case ((a & b) -> c) if b == c => Axiom(5)
-    case (a -> (b V c)) if a == b => Axiom(6)
-    case (a -> (b V c)) if a == c => Axiom(7)
-    case (!!(!!(a)) -> b) if a == b => Axiom(10)
-    case (a -> (b -> c)) if a == c => Axiom(1)
-    case a if state._3.contains(a) => Assumption()
-    case a if state._2.contains(a) => state._2.get(a) match {
-      case Some(set) if set.nonEmpty =>
-        val (expr, newLine1) = set.reduceRight((a, b) => if (state._1.contains(a._1)) a else b)
-        state._1.get(expr) match {
-          case Some((_, newLine2)) => ModusPonens(newLine2, newLine1) // WHAT, INTO WHAT
-          case _ => Fault()
-        }
+      case ((a -> b) -> ((c -> (d -> e)) -> (f -> g)))
+          if a == c && b == d && e == g && a == f => Axiom(2)
+      case ((a -> b) -> ((c -> d) -> ((e V f) -> g)))
+          if a == e && b == d && c == f && d == g => Axiom(8)
+      case ((a -> b) -> ((c -> !!(d)) -> !!(e))) if a == c && b == d && a == e => Axiom(9)
+      case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
+      case ((a & b) -> c) if a == c => Axiom(4)
+      case ((a & b) -> c) if b == c => Axiom(5)
+        // TODO 11, 12
+      case (a -> (b V c)) if a == b => Axiom(6)
+      case (a -> (b V c)) if a == c => Axiom(7)
+      case (!!(!!(a)) -> b) if a == b => Axiom(10)
+      case (a -> (b -> c)) if a == c => Axiom(1)
+      case a if state._3.contains(a) => Assumption()
+      case a if state._2.contains(a) => state._2.get(a) match {
+        case Some(set) if set.nonEmpty =>
+          val (expr, newLine1) = set.reduceRight(
+              (a, b) => if (state._1.contains(a._1)) a else b)
+          state._1.get(expr) match {
+            case Some((_, newLine2)) => ModusPonens(newLine2, newLine1) // WHAT, INTO WHAT
+            case _ => Fault()
+          }
+        case _ => Fault()
+      }
       case _ => Fault()
     }
-    case _ => Fault()
-  }
 
   /**
    * This method updates state due to needed changes

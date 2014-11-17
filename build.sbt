@@ -2,6 +2,8 @@ name := "MathLogic"
 
 version := "1.0"
 
+//org.scalastyle.sbt.ScalastylePlugin.Settings
+
 //libraryDependencies ++= Seq("org.specs2" %% "specs2" % "2.4.2" % "test")
 
 //libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test"
