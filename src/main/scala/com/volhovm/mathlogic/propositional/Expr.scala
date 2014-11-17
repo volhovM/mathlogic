@@ -19,17 +19,15 @@ sealed trait Expr {
   def &(other: Expr): Expr = new &(this, other)
 }
 
-case class Var(a: String) extends Expr { override def toString: String = a.toLowerCase }
 case class ->(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("->")(lhs, rhs) }
 case class &(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("&")(lhs, rhs)}
 case class V(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("|")(lhs, rhs)}
 case class !!(a: Expr) extends Expr { override def toString: String = "!" + wrap(a) }
-case class @@(lhs: Var, rhs: Expr) extends Expr
+case class @@(lhs: Term, rhs: Expr) extends Expr
 { override def toString: String = "@" + lhs + " " + wrap(rhs) }
-case class ?(lhs: Var, rhs: Expr) extends Expr
+case class ?(lhs: Term, rhs: Expr) extends Expr
 { override def toString: String = "?" + lhs + " " + wrap(rhs) }
-case class Pred(name: String, args: Expr*) extends Expr
-{ override def toString = name + args.mkString(", ") }
-case class ==(lhs: Expr, rhs: Expr) extends Expr
-case class +(lhs: Expr, rhs: Expr) extends Expr
-case class *(lhs: Expr, rhs: Expr) extends Expr
+case class Pred(name: String, args: Term*) extends Expr
+{ override def toString = name + "(" + args.toList.mkString(", ") + ")" }
+case class Term(name: String, args: Term*) extends Expr
+  { override def toString: String = name.toLowerCase + args.mkString(",") }
