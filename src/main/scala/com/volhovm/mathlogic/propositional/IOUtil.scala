@@ -7,7 +7,9 @@ package com.volhovm.mathlogic.propositional
 
 // self-documenting i suppose
 object IOUtil {
-  def parseString(string: String) = new ExpressionParser(string).simpleInputLine.run().get
+  def parse(string: String) = new ExpressionParser(string).simpleInputLine.run().get
+  def parseTerm(string: String) = new ExpressionParser(string).term.run().get
+
   // In
   def getP(fileName: String): Proof =
     scala.io.Source.fromFile(fileName).getLines().toList.map(

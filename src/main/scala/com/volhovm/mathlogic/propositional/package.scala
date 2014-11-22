@@ -77,12 +77,13 @@ package object propositional {
 
   def subst(in: Expr, what: Term, instead_of: Term): Expr = in match {
       case a -> b          => subst(a, what, instead_of) -> subst(b, what, instead_of)
-      case a & b          => subst(a, what, instead_of) & subst(b, what, instead_of)
-      case a V b          => subst(a, what, instead_of) V subst(b, what, instead_of)
+      case a & b           => subst(a, what, instead_of) & subst(b, what, instead_of)
+      case a V b           => subst(a, what, instead_of) V subst(b, what, instead_of)
       case !!(a)           => !!(subst(a, what, instead_of))
       case @@(a, b)        => @@(a, subst(b, what, instead_of))
       case ?(a, b)         => ?(a, subst(b, what, instead_of))
       case Pred(a, l @ _*) => Pred(a, l.map(x => substT(x, what, instead_of)): _*)
+      case t@Term(a, l @ _*) => subst(t, what, instead_of)
     }
 
   def substT(in: Term, what: Term, instead_of: Term): Term = in match {
@@ -90,7 +91,63 @@ package object propositional {
       case Term(a, l @ _*) => Term(a, l.map(x => substT(x, what, instead_of)): _*)
     }
 
+  private def prod[A](a: (Boolean, String, A), b: (Boolean, String, A)) =
+    (if (a._2 == "-1" | b._2 == "-1") false else
+       if (a._1 == b._1 && a._1) a._2 == b._2 && a._3 == b._3
+                                            else a._1 | b._1,
+     if (a._2 == "-1" |
+           b._2 == "-1" |
+           a._1 == b._1 && a._1 && a._2 != b._2) "-1" else if (a._1) a._2 else b._2,
+     if (a._1) a._3 else b._3)
 
-  def prod[A](a: (Boolean, A), b: (Boolean, A)) = ((a._1 == b._1) && (a._2 == b._2), a._2)
-  def diff(a: Expr, b: Expr) = ???
+  // checks if substituted is clear[x:=p]
+  // if _1 is true then _3 is substituted instead of _2 var
+  // if _1 is false then if _2 is "-1" then more than one var is subsituted
+  //                     if _2 is variable then it has >1 different sibstitutions
+  //                     if _2 is "0" exprs are equal
+  //                     if _2 is "-2" exprs are not even similar
+  def diff(clear: Expr, substituted: Expr): (Boolean, String, Expr) = clear match {
+      case a -> b => substituted match {
+        case c -> d => prod(diff(c, a), diff(d, b))
+        case x => (false, "-2", x)
+      }
+      case a & b => substituted match {
+        case c & d => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case a V b => substituted match {
+        case c V d => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case !!(a) => substituted match {
+        case !!(b) => diff(a, b)
+        case x => (false, "-2", x)
+      }
+      case @@(a, b) => substituted match {
+        case @@(c, d) => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case ?(a, b) => substituted match {
+        case ?(c, d) => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case Pred(a, tail1 @ _*) => substituted match {
+        case Pred(b, tail2 @ _*) if (a == b && tail2.length == tail1.length) =>
+          tail1.zip(tail2).map((a: (Expr, Expr)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x => (false, "-2", x)
+      }
+        // variable
+      case Term(a)
+          if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
+          (a.length == 1 && a(0).isLetter)) => substituted match {
+            case c@Term(b) if a == b => (false, a, c)
+            case c : Term => (true, a, c)
+            case x => (false, "0", x)
+      }
+      case Term(a, tail1 @ _*) => substituted match {
+        case Term(b, tail2 @ _*) if (a == b && tail1.length == tail2.length && !tail1.isEmpty) =>
+          tail1.zip(tail2).map((a: (Term, Term)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x => (false, "0", x)
+      }
+    }
 }
