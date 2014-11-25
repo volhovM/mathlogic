@@ -9,14 +9,19 @@ import scala.language.implicitConversions
  */
 
 object ProofMaker {
+  type Measure = List[(String, Boolean)]
+  private type ProofTree = BTree[Either[Derivation, Measure]]
+
   private sealed trait BTree[A]
   private case class Node[A](lhs: BTree[A], rhs: BTree[A]) extends BTree[A] {
     override def toString: String = "Node:\n " + lhs.toString + "\n " + rhs.toString
   }
   private case class Leaf[A](a: A) extends BTree[A]
 
+
   private def excluding(x: Derivation, y: Derivation): Derivation = {
-    if (x._1.tail != Nil && x._1.tail != y._1.tail) throw new IllegalArgumentException(IOUtil.header(x) ++ "\n" ++ IOUtil.header(y))
+    if (x._1.tail != Nil && x._1.tail != y._1.tail)
+      throw new IllegalArgumentException(IOUtil.header(x) ++ "\n" ++ IOUtil.header(y))
     else {
       val p = x._1.head
       val a = x._2.last
@@ -32,7 +37,7 @@ object ProofMaker {
     }
   }
 
-  private def eval(e: Expr, vars: List[(String, Boolean)]): Boolean = e match {
+  private def eval(e: Expr, vars: Measure): Boolean = e match {
     case a -> b => if (eval(a, vars) && !eval(b, vars)) false else true
     case a V b => eval(a, vars) | eval(b, vars)
     case a & b => eval(a, vars) & eval(b, vars)
@@ -53,10 +58,10 @@ object ProofMaker {
     case _ => a
   }
 
-  implicit private def measureToContext(measure: List[(String, Boolean)]): List[Expr] =
+  implicit private def measureToContext(measure: Measure): List[Expr] =
     measure.map(a => if (a._2) Pred(a._1) else !!(Pred(a._1)))
 
-  private def foo(x: Expr, y: Expr, measure: List[(String, Boolean)],
+  private def foo(x: Expr, y: Expr, measure: Measure,
                   a: (Expr, Expr) => Derivation,
                   b: (Expr, Expr) => Derivation,
                   c: (Expr, Expr) => Derivation,
@@ -65,38 +70,60 @@ object ProofMaker {
     val ey = eval(y, measure)
     mkD(ex match {
       case true => ey match {
-        case true => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++ ifNotVar(y, makeDerivation(measure, y)._2) ++ a(x, y)._2)
-        case false => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++ makeDerivation(measure, !!(y))._2 ++ b(x, y)._2)
+        case true => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++
+                        ifNotVar(y, makeDerivation(measure, y)._2) ++ a(x, y)._2)
+        case false => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++
+                         makeDerivation(measure, !!(y))._2 ++ b(x, y)._2)
       }
       case false => ey match {
-        case true => (measure, makeDerivation(measure, !!(x))._2 ++ ifNotVar(y, makeDerivation(measure, y)._2) ++ c(x, y)._2)
-        case false => (measure, makeDerivation(measure, !!(x))._2 ++ makeDerivation(measure, !!(y))._2 ++ d(x, y)._2)
+        case true => (measure, makeDerivation(measure, !!(x))._2 ++
+                        ifNotVar(y, makeDerivation(measure, y)._2) ++ c(x, y)._2)
+        case false => (measure, makeDerivation(measure, !!(x))._2 ++
+                         makeDerivation(measure, !!(y))._2 ++ d(x, y)._2)
       }
     })
   }
 
-  private def makeDerivation(measure: List[(String, Boolean)], e: Expr): Derivation = e match {
+  private def makeDerivation(measure: Measure, e: Expr): Derivation = e match {
     case a -> b => foo(a, b, measure, implicationTT, implicationTF, implicationFT, implicationFF)
     case a V b => foo(a, b, measure, disjunctionTT, disjunctionTF, disjunctionFT, disjunctionFF)
     case a & b => foo(a, b, measure, conjunctionTT, conjunctionTF, conjunctionFT, conjunctionFF)
-    case !!(a) => if (eval(a, measure)) (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
-    else (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationF(a)._2)
+    case !!(a) => if (eval(a, measure))
+      (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
+                  else
+      (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationF(a)._2)
     case Pred(_) => (List(e), List(e))
   }
 
-  private def makeTree(e: Expr, list: List[String], out: List[(String, Boolean)] = List[(String, Boolean)]()): BTree[Derivation] =
+  private def makeTree(
+    e: Expr,
+    list: List[String],
+    out: Measure = List()
+  ): ProofTree =
     list match {
       case x :: xs => Node(makeTree(e, xs, (x, true) :: out), makeTree(e, xs, (x, false) :: out))
-      case Nil => Leaf(makeDerivation(out.reverse, e))
+      case Nil => if (eval(e, out)) Leaf(Left(makeDerivation(out.reverse, e)))
+                  else Leaf(Right(out))
     }
 
-  private def getDerivations(e: Expr): BTree[Derivation] = makeTree(e, countVars(e).toList)
+  private def getDerivations(e: Expr): ProofTree =
+    makeTree(e, countVars(e).toList)
 
-  private def mergeAll(tree: BTree[Derivation]): Derivation = tree match {
-    case Node(Leaf(a), Leaf(b)) => excluding(a, b)
-    case Node(a, b) => excluding(mergeAll(a), mergeAll(b))
-    case Leaf(a) => a
-  }
+  private def mergeAll(tree: ProofTree): Either[Derivation, Measure] =
+    tree match {
+      case Node(a, b) => mergeAll(a) match {
+        case Left(x) => mergeAll(b) match {
+          case Left(y) => Left(excluding(x, y))
+          case r@Right(measure) => r
+        }
+        case r@Right(measure) => r
+      }
+      case Leaf(a) => a
+    }
 
-  def makeProof(e: Expr): Proof = mergeAll(getDerivations(e))._2
+  def makeProof(e: Expr): Either[Proof, Measure] =
+    mergeAll(getDerivations(e)) match {
+      case Left(a) => Left(a._2)
+      case Right(a) => Right(a)
+    }
 }

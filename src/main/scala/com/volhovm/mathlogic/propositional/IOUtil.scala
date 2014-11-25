@@ -33,7 +33,7 @@ object IOUtil {
   def printP(proof: Proof) = proof.foreach(println)
   def printAP(proof: AProof) = {
     val margin = proof.foldRight(0)((e, n) => math.max(e._1, n))
-    (Stream.from(1) zip proof).foreach(
+    (Stream.from(0) zip proof).foreach(
       e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2))
     )
   }

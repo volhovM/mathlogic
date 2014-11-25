@@ -21,7 +21,7 @@ object Annotator {
   private type CMap = Map[Expr, (Annotation, Int)]
 
   /**
-   * For all expressions of type a --> b MPMap contains key-value of b -> a
+   * For all expressions of type a -> b MPMap contains key-value of b -> a
    */
   private type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
 
@@ -122,10 +122,11 @@ object Annotator {
       case (a -> (b -> c)) if a == c => Axiom(1)
       case a if state._3.contains(a) => Assumption()
       case a if state._2.contains(a) => state._2.get(a) match {
-        case Some(set) if set.nonEmpty =>
-          val (expr, newLine1) = set.reduceRight(
-              (a, b) => if (state._1.contains(a._1)) a else b)
+        case Some(set) if { set.filter(e => checkState(state._1.get(e._1 -> a))).nonEmpty } =>
+          val (expr, newLine1) = set.filter(e => checkState(state._1.get(e._1 -> a))).reduceRight(
+              (a, b) => if (checkState(state._1.get(a._1))) a else b)
           state._1.get(expr) match {
+            case Some((Fault(), _)) => Fault()
             case Some((_, newLine2)) => ModusPonens(newLine2, newLine1) // WHAT, INTO WHAT
             case _ => Fault()
           }
@@ -136,6 +137,17 @@ object Annotator {
       case (a -> @@(b, c)) if state._1.contains(a -> c) =>
         DerivationForall(state._1.get(a->c).get._2)
       case _ => Fault()
+    }
+
+  /**
+   * Checks if this state.get contains Fault
+   * Needed by getConstructionType
+   */
+  private def checkState(option: Option[(Annotation, Int)]): Boolean =
+    option match {
+      case None => false
+      case Some((Fault(), _)) => false
+      case _ => true
     }
 
   /**

@@ -38,15 +38,26 @@ package object propositional {
       case Fault() => List()
     }
 
+//  private def shrtA(proof: AProof): AProof =
+//    proof.last._2 match {
+//      case ModusPonens(i, j) =>
+//        shrtA(proof.take(i + 1)) ++
+//        shrtA(proof.take(j + 1)) ++
+//          List(proof.last)
+//      case Axiom(_) => List(proof.last)
+//      case Assumption() => List(proof.last)
+//      case Fault() => List()
+//    }
+
   // if implicit, we have no second chance
-  implicit def shortenP(proof: Proof): Proof =
+  def shortenP(proof: Proof): Proof =
     shrt(Annotator.annotate(proof))
-  implicit def shortenD(derivation: Derivation): Derivation =
+  def shortenD(derivation: Derivation): Derivation =
     (derivation._1, shrt(Annotator.annotateDerivation(derivation)._2))
-  implicit def shortenAP(proof: AProof): Proof =
-    shrt(proof)
-  implicit def shortenAD(derivation: ADerivation): Derivation =
-    (derivation._1, shrt(derivation._2))
+  implicit def shortenAP(proof: AProof): AProof =
+    Annotator.annotate(shrt(proof))
+  implicit def shortenAD(derivation: ADerivation): ADerivation =
+    Annotator.annotateDerivation((derivation._1, shrt(derivation._2)))
 
   def verdict(proof: AProof) =
     proof.takeWhile(_._2 match { case Fault() => false; case _ => true}) match {
@@ -157,4 +168,35 @@ package object propositional {
         case x => (false, "-2", x)
       }
     }
+  // for every var a -> list of quantors affecting it
+  def getFreeVars(e: Expr, quantors: Set[Term] = Set()): Map[Term, Set[Term]] =
+      e match {
+        case @@(a, b) => getFreeVars(b, quantors + a)
+        case ?(a, b)  => getFreeVars(b, quantors + a)
+        case v@Term(a)
+            if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
+                  (a.length == 1 && a(0).isLetter)) =>
+          return Map(v -> quantors)
+        case a -> b => getFreeVars(a, quantors) ++ getFreeVars(b, quantors)
+        case a & b => getFreeVars(a, quantors) ++ getFreeVars(b, quantors)
+        case a V b => getFreeVars(a, quantors) ++ getFreeVars(b, quantors)
+        case !!(a) => getFreeVars(a, quantors)
+        case Pred(a) => Map()
+        case Pred(a, l @ _*) => l.map(getFreeVars(_, quantors)).reduce(_++_)
+        case Term(a) => Map()
+        case Term(a, l @ _*) => l.map(getFreeVars(_, quantors)).reduce(_++_)
+      }
+
+  // alpha [v := theta]
+  def freeForSubstitution(theta: Term, v: Term, alpha: Expr) : Boolean = {
+    val a = getFreeVars(theta)
+    val b = getFreeVars(alpha)
+    b.get(v) match {
+      case None => true
+      case Some(set) => set.toList.map((x: Term) => a.get(x) match {
+                                         case None => true
+                                         case Some(y) => !y.isEmpty && y.contains(x)
+                                       }).reduce(_&&_)
+    }
+  }
 }

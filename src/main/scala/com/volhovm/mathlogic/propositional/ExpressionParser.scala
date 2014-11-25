@@ -7,7 +7,7 @@ import org.parboiled2._
 
 class ExpressionParser(val input: ParserInput) extends Parser {
   // This works?!
-  implicit def wspStr(s: String): Rule0 = rule {
+  implicit def wrpStr(s: String): Rule0 = rule {
     zeroOrMore(' ') ~ str(s) ~ zeroOrMore(' ')
   }
 
@@ -23,7 +23,7 @@ class ExpressionParser(val input: ParserInput) extends Parser {
   def simpleInputLine: Rule1[Expr] = rule { expression ~ EOI }
 
   private def leftAssoc[A](a: => Rule1[A], b: (A, A) => A, divider: String): Rule1[A]
-    = rule { a ~ zeroOrMore(str(divider) ~ a ~> b) }
+    = rule { a ~ zeroOrMore(wrpStr(divider) ~ a ~> b) }
 
   private def expression: Rule1[Expr] = rule {
     oneOrMore(disjunction).separatedBy("->") ~>

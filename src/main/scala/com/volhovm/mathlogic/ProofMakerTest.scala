@@ -25,10 +25,17 @@ object ProofMakerTest extends App {
       (a & b) -> a,
       (b & a) -> b,
       a -> (a V b),
+      a,
+      (a & !!(a)) -> b,
+      (a -> b -> c) -> (a & b -> c),
       (c & !!(d & c) -> c -> b) V (a V !!(a)) // IT WORKS OH MY GOD
     )
   tautologies.foreach(x =>
-    { print("Testing: " + x + "...");
-      assert(verdict(annotate(makeProof(x))) == -1);
-      println(" OK") })
+    { println("Testing: " + x + "... ")
+      makeProof(x) match {
+        case Left(a) if verdict(Annotator.annotate(a)) == -1 => println("[OK]")
+        case Left(_) => println("[FAIL]")
+        case Right(measure) => println("[FAIL] On set: " + measure.mkString(", "))
+      }
+    })
  }
