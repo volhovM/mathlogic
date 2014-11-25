@@ -10,7 +10,8 @@ import scala.collection.mutable.{HashMap, MultiMap, Set}
  */
 
 object Annotator {
-  /** * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
+  /**
+   * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
    * @tparam A - type of List[A] you want to get.
    */
   private type State[A] = (CMap, MPMap, Context, List[A])
@@ -112,8 +113,13 @@ object Annotator {
       case ((a & b) -> c) if a == c => Axiom(4)
       case ((a & b) -> c) if b == c => Axiom(5)
         // TODO FREEDOM FOR SUBSTITUTION
+        // TODO Make it unblockable (once we get into checking MP,
+        // we can't go next case
       case (@@(x, a) -> b) if { val t = diff(a, b);
-        t._1 && t._2 == x.name | t._2 == "0" } => Axiom(11)
+       (t._1 && t._2 == x.name | t._2 == "0")
+//        && freeForSubstitution(t._3, t._2, a)
+      } =>
+      Axiom(11)
       case (a -> ?(x, b)) if { val t = diff(b, a);
         t._1 && t._2 == x.name | t._2 == "0" } => Axiom(12)
       case (a -> (b V c)) if a == b => Axiom(6)
