@@ -17,6 +17,6 @@ scalacOptions in Test ++= Seq("-Yrangepos")
 
 scalacOptions ++= Seq("-feature")
 
-initialCommands in console := "import com.volhovm.mathlogic.propositional._"
+initialCommands in console := "import com.volhovm.mathlogic.propositional._; import IOUtil._"
 
 resolvers ++= Seq("snapshots", "releases").map(Resolver.sonatypeRepo)

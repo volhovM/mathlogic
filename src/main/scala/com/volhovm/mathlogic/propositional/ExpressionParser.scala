@@ -56,7 +56,7 @@ class ExpressionParser(val input: ParserInput) extends Parser {
          ((a: String, b: Seq[Term]) => Term(a, b: _*)))  |
          variable |
          ("(" ~ term ~ ")") |
-         (ch('0') ~> (() => Term("0")))) ~
+         (str("0") ~> (() => Term("0")))) ~
       zeroOrMore(capture("'")) ~> ((a: Term, b: Seq[_]) => wrapInQuote(a, b.length)) }
 
   private def wrapInQuote(e: Term, n: Int): Term =

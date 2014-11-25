@@ -132,22 +132,29 @@ package object propositional {
         case x => (false, "-2", x)
       }
       case Pred(a, tail1 @ _*) => substituted match {
-        case Pred(b, tail2 @ _*) if (a == b && tail2.length == tail1.length) =>
-          tail1.zip(tail2).map((a: (Expr, Expr)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x@Pred(b, tail2 @ _*) if (a == b && tail2.length == tail1.length) =>
+          if (tail1.isEmpty)
+            (false, "0", x)
+          else
+            tail1.zip(tail2).map((a: (Expr, Expr)) => diff(a._1, a._2)).reduce(prod[Expr])
         case x => (false, "-2", x)
       }
         // variable
       case Term(a)
           if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
           (a.length == 1 && a(0).isLetter)) => substituted match {
-            case c@Term(b) if a == b => (false, a, c)
+            case c@Term(b) if a == b => (false, "0", c)
             case c : Term => (true, a, c)
-            case x => (false, "0", x)
+            case x => (false, "-2", x)
       }
       case Term(a, tail1 @ _*) => substituted match {
-        case Term(b, tail2 @ _*) if (a == b && tail1.length == tail2.length && !tail1.isEmpty) =>
-          tail1.zip(tail2).map((a: (Term, Term)) => diff(a._1, a._2)).reduce(prod[Expr])
-        case x => (false, "0", x)
+        case x@Term(b, tail2 @ _*) if (a == b && tail1.length == tail2.length) =>
+          // similar
+          if (tail1.isEmpty)
+            (false, "0", x)
+          else
+            tail1.zip(tail2).map((a: (Term, Term)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x => (false, "-2", x)
       }
     }
 }

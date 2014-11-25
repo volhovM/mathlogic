@@ -111,9 +111,11 @@ object Annotator {
       case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
       case ((a & b) -> c) if a == c => Axiom(4)
       case ((a & b) -> c) if b == c => Axiom(5)
-      case (@@(x, a) -> b) if { val t = diff(a, b); t._1 && t._2 == x } => Axiom(11)
-      case (a -> ?(x, b)) if { val t = diff(b, a); t._1 && t._2 == x } => Axiom(12)
-          // TODO 11, 12
+        // TODO FREEDOM FOR SUBSTITUTION
+      case (@@(x, a) -> b) if { val t = diff(a, b);
+        t._1 && t._2 == x.name | t._2 == "0" } => Axiom(11)
+      case (a -> ?(x, b)) if { val t = diff(b, a);
+        t._1 && t._2 == x.name | t._2 == "0" } => Axiom(12)
       case (a -> (b V c)) if a == b => Axiom(6)
       case (a -> (b V c)) if a == c => Axiom(7)
       case (!!(!!(a)) -> b) if a == b => Axiom(10)
@@ -129,6 +131,10 @@ object Annotator {
           }
         case _ => Fault()
       }
+      case (?(a, b) -> c) if state._1.contains(b -> c) =>
+        DerivationExists(state._1.get(b->c).get._2)
+      case (a -> @@(b, c)) if state._1.contains(a -> c) =>
+        DerivationForall(state._1.get(a->c).get._2)
       case _ => Fault()
     }
 

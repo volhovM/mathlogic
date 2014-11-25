@@ -9,4 +9,6 @@ sealed trait Annotation
 case class Fault() extends Annotation
 case class Axiom(num: Int) extends Annotation
 case class ModusPonens(lhs: Int, rhs: Int) extends Annotation
+case class DerivationForall(other: Int) extends Annotation
+case class DerivationExists(other: Int) extends Annotation
 case class Assumption() extends Annotation
