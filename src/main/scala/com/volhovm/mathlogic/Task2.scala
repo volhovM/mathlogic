@@ -8,7 +8,6 @@ import com.volhovm.mathlogic.propositional._
  *         Created on 9/25/14
  */
 
-// Task 2
-object DeductionTransformer {
-  def main(args: Array[String]): Unit = printD(deductionApply(getD("deduction.in")))
+object Task2 {
+  def main(args: Array[String]): Unit = printD(deductionApply(getD("second.in")))
 }

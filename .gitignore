@@ -11,3 +11,5 @@ project/boot/
 .cache
 .idea/
 .ens*
+*~
+*#
