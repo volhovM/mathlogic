@@ -61,11 +61,14 @@ class ExpressionParser(val input: ParserInput) extends Parser {
 
   private def wrapInQuote(e: Term, n: Int): Term =
     if (n < 1) e else wrapInQuote(Term("'", e), n - 1)
-  private def variable: Rule1[Term] = rule { capture(lower) ~> ((a: String) => Term(a)) }
+  private def variable: Rule1[Term] =
+    rule { (capture(lowerE) | capture(lower)) ~> ((a: String) => Term(a)) }
   private def upper: Rule0 =
     rule { anyOf("PYFGCRLAOEUIDHTNSQJKXBMWVZ") ~ zeroOrMore(anyOf("0123456789")) }
-  private def lower: Rule0 =
+  private def lowerE: Rule0 =
     rule { anyOf("pyfgcrlaoeuidhtnsqjkxbmwvz") ~ zeroOrMore(anyOf("0123456789")) }
+  private def lower: Rule0 =
+    rule { anyOf("pyfgcrlaoeuidhtnsqjkxbmwvz") }
   private def negate: Rule1[!!] = rule { "!" ~ unary ~> propositional.!! }
   private def parenth: Rule1[Expr] = rule { "(" ~ expression ~ ")" }
 }

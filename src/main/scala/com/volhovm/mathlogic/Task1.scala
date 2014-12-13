@@ -1,7 +1,5 @@
 package com.volhovm.mathlogic
 
-import java.io.PrintWriter
-
 import propositional._
 import IOUtil._
 

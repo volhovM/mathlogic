@@ -30,8 +30,7 @@ package object propositional {
 
   private def shrt(proof: AProof): Proof =
     proof.last._2 match {
-      case ModusPonens(i, j) => shrt(proof.take(i + 1)) ++
-                                shrt(proof.take(j + 1)) ++
+      case ModusPonens(i, j) => shrt(proof.take(i + 1)) ++ shrt(proof.take(j + 1)) ++
                                 List(proof.last._1)
       case Axiom(_) => List(proof.last._1)
       case Assumption() => List(proof.last._1)
@@ -171,7 +170,7 @@ package object propositional {
       }
     }
   // for every var a -> list of quantors affecting it
-  private def getAffectedVars(e: Expr, quantors: Set[Term] = Set()): Map[Term, Set[Term]] =
+  def getAffectedVars(e: Expr, quantors: Set[Term] = Set()): Map[Term, Set[Term]] =
       e match {
         case @@(a, b) => getAffectedVars(b, quantors + a)
         case ?(a, b)  => getAffectedVars(b, quantors + a)
@@ -190,6 +189,7 @@ package object propositional {
       }
 
   // alpha [v := theta]
+  // theta was substituted instead of v in alpha, is it ok?
   def freeForSubstitution(theta: Expr, v: Term, alpha: Expr) : Boolean = {
     val a = getAffectedVars(theta)
     val b = getAffectedVars(alpha)
@@ -198,7 +198,12 @@ package object propositional {
       case Some(set) => set.toList.map((x: Term) => a.get(x) match {
                                          case None => true
                                          case Some(y) => !y.isEmpty && y.contains(x)
-                                       }).reduce(_&&_)
+                                       }).foldLeft(true)(_&&_)
     }
   }
+
+  def entersFree(e: Expr, vr: Term) = getAffectedVars(e).get(vr) match {
+      case Some(a) => !a.contains(vr)
+      case None => false
+    }
 }

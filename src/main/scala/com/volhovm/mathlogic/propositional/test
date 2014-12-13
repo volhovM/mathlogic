@@ -1,0 +1,873 @@
+package com.volhovm.mathlogic.propositional
+
+/**
+ * @author volhovm
+ *         Created on 9/16/14
+ */
+
+sealed trait Annotation
+case class Fault() extends Annotation
+case class Axiom(num: Int) extends Annotation
+case class ModusPonens(lhs: Int, rhs: Int) extends Annotation
+case class DerivationForall(other: Int) extends Annotation
+case class DerivationExists(other: Int) extends Annotation
+case class Assumption() extends Annotation
+package com.volhovm.mathlogic.propositional
+
+import scala.annotation.switch
+import scala.collection._
+import scala.collection.mutable.{HashMap, MultiMap, Set}
+
+/**
+ * @author volhovm
+ *         Created on 9/10/14
+ */
+
+object Annotator {
+  /**
+   * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
+   * @tparam A - type of List[A] you want to get.
+   */
+  private type State[A] = (CMap, MPMap, Context, List[A])
+
+  /**
+   * CMap contains map from all left expression parts to pair (it's annotation, line)
+   */
+  private type CMap = Map[Expr, (Annotation, Int)]
+
+  /**
+   * For all expressions of type a -> b MPMap contains key-value of b -> a
+   */
+  private type MPMap = HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)]
+
+  /**
+   * This method generates context from input to recognize Assumption
+   * @param input - context (list of expressions)
+   * @tparam A - the type of values inside list you want to get (see State[A])
+   * @return - state with needed context
+   */
+  def contextState[A](input: Context) = (
+    Map.empty[Expr, (Annotation, Int)],
+    new HashMap[Expr, Set[(Expr, Int)]] with MultiMap[Expr, (Expr, Int)],
+    input,
+    List[A]())
+
+  /**
+   * Generates empty state when no Assumption() needed to recognize
+   * @tparam A - see State[A]
+   * @return - state with empty context
+   */
+  def emptyState[A]: State[A] = contextState[A](List[Expr]())
+
+  /**
+   * This method provides a possibility to operate with expressions and annotate a list of them
+   * see annotate and annotateString methods as examples
+   * @param exprs - the proof (see Proof)
+   * @param state - the state, needed for evaluation
+   * @param wrapper - the function that (for every expression) takes the Tuple3
+   * and returns an A, accumulates it and returns a list of A
+   * @param line - inner method param
+   * @tparam A - the type parameter defining a list of what you want to get
+   * @return - List[A]
+   */
+  def annotateGeneric[A](
+      exprs: Proof,
+      state: State[A],
+      wrapper: (Expr, Annotation, Int) => A,
+      line: Int = 0): List[A] =
+    if (exprs.isEmpty) state._4.reverse
+    else annotateGeneric(
+      exprs.tail,
+      wrap(
+        state,
+        line,
+        exprs.head,
+        getConstructionType(exprs.head, state),
+        wrapper),
+      wrapper,
+      line + 1)
+
+  /**
+   * Returns usual annotation
+   * (converts a list of expressions to list of pairs (expression, annotation))
+   * @param exprs - expressions to annotate
+   * @param state - state to provide if you have some context, default is emptyState
+   * @return - annotated proof
+   */
+  def annotate(
+      exprs: Proof,
+      state: State[(Expr, Annotation)] = emptyState[(Expr, Annotation)]): AProof =
+    annotateGeneric[(Expr, Annotation)](exprs, state, {(e, c, i) => (e, c)})
+
+  /**
+   * Returns annotated derivation
+   * @param derivation - derivotion to annotate
+   * @return - annotated derivation
+   */
+  def annotateDerivation(derivation: Derivation): ADerivation =
+    (derivation._1, annotate(derivation._2, contextState(derivation._1)))
+
+  /**
+   * The method that matches expression and returns
+   * it's annotation if succeeded or Fault() otherwise
+   * @param x - expression to examine
+   * @param state - current state
+   * @tparam A - see State[A]
+   * @return - annotation type for expression x
+   */
+  private def getConstructionType[A](x: Expr, state: State[A]): Annotation =
+    x match {
+      // Axioms
+      case ((a -> b) -> ((c -> (d -> e)) -> (f -> g)))
+          if a == c && b == d && e == g && a == f => Axiom(2)
+      case ((a -> b) -> ((c -> d) -> ((e V f) -> g)))
+          if a == e && b == d && c == f && d == g => Axiom(8)
+      case ((a -> b) -> ((c -> !!(d)) -> !!(e))) if a == c && b == d && a == e => Axiom(9)
+      case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
+      case ((a & b) -> c) if a == c => Axiom(4)
+      case ((a & b) -> c) if b == c => Axiom(5)
+        // TODO FREEDOM FOR SUBSTITUTION
+        // TODO Make it unblockable (once we get into checking MP,
+        // we can't go next case
+      case (@@(x, a) -> b) if { val t = diff(a, b);
+       (t._1 && t._2 == x.name | t._2 == "0")
+//        && freeForSubstitution(t._3, t._2, a)
+      } =>
+      Axiom(11)
+      case (a -> ?(x, b)) if { val t = diff(b, a);
+        t._1 && t._2 == x.name | t._2 == "0" } => Axiom(12)
+      case (a -> (b V c)) if a == b => Axiom(6)
+      case (a -> (b V c)) if a == c => Axiom(7)
+      case (!!(!!(a)) -> b) if a == b => Axiom(10)
+      case (a -> (b -> c)) if a == c => Axiom(1)
+      case a if state._3.contains(a) => Assumption()
+      case a if state._2.contains(a) => state._2.get(a) match {
+        case Some(set) if { set.filter(e => checkState(state._1.get(e._1 -> a))).nonEmpty } =>
+          val (expr, newLine1) = set.filter(e => checkState(state._1.get(e._1 -> a))).reduceRight(
+              (a, b) => if (checkState(state._1.get(a._1))) a else b)
+          state._1.get(expr) match {
+            case Some((Fault(), _)) => Fault()
+            case Some((_, newLine2)) => ModusPonens(newLine2, newLine1) // WHAT, INTO WHAT
+            case _ => Fault()
+          }
+        case _ => Fault()
+      }
+      case (?(a, b) -> c) if state._1.contains(b -> c) =>
+        DerivationExists(state._1.get(b->c).get._2)
+      case (a -> @@(b, c)) if state._1.contains(a -> c) =>
+        DerivationForall(state._1.get(a->c).get._2)
+      case _ => Fault()
+    }
+
+  /**
+   * Checks if this state.get contains Fault
+   * Needed by getConstructionType
+   */
+  private def checkState(option: Option[(Annotation, Int)]): Boolean =
+    option match {
+      case None => false
+      case Some((Fault(), _)) => false
+      case _ => true
+    }
+
+  /**
+   * This method updates state due to needed changes
+   * @param state - state to modify
+   * @param line - current line
+   * @param e - current expression
+   * @param annotation - annotation to x
+   * @param wrapper - function from annotateGeneric
+   * @tparam A - see State[A]
+   * @return - new updated state
+   */
+  private def wrap[A](state: State[A],
+                      line: Int,
+                      e: Expr,
+                      annotation: Annotation,
+                      wrapper: (Expr, Annotation, Int) => A): State[A]
+  = (state._1.+(e -> ((annotation, line))),
+    e match {
+      case y: -> =>
+        state._2.addBinding(y.rhs, (y.lhs, line))
+      case _ => state._2
+    },
+    state._3,
+    wrapper(e, annotation, line) :: state._4)
+}
+package com.volhovm.mathlogic.propositional
+
+import scala.language.implicitConversions
+import com.volhovm.mathlogic.propositional
+import com.volhovm.mathlogic.propositional._
+import org.parboiled2._
+
+class ExpressionParser(val input: ParserInput) extends Parser {
+  // This works?!
+  implicit def wrpStr(s: String): Rule0 = rule {
+    zeroOrMore(' ') ~ str(s) ~ zeroOrMore(' ')
+  }
+
+  // Grammar
+  // S = (A {"," A}* "|-" A ) | A
+  def derivationInputLine: Rule1[(List[Expr], Expr)] =
+    rule {
+      ((zeroOrMore(expression).separatedBy(",") ~> ((a: Seq[Expr]) => a.toList)) ~
+      "|-" ~
+      expression) ~> ((a: List[Expr], b: Expr) => (a, b)) ~
+      EOI }
+
+  def simpleInputLine: Rule1[Expr] = rule { expression ~ EOI }
+
+  private def leftAssoc[A](a: => Rule1[A], b: (A, A) => A, divider: String): Rule1[A]
+    = rule { a ~ zeroOrMore(wrpStr(divider) ~ a ~> b) }
+
+  private def expression: Rule1[Expr] = rule {
+    oneOrMore(disjunction).separatedBy("->") ~>
+    ((a: Seq[Expr]) => a.reduceRight(->)) }
+  private def disjunction: Rule1[Expr] = leftAssoc(conjunction, V, "|")
+  private def conjunction: Rule1[Expr] = leftAssoc(unary, propositional.&, "&")
+  private def unary: Rule1[Expr] =
+    rule {
+      predicate |
+      negate |
+      parenth |
+      ("@" ~ variable ~ unary ~> ((a, b) => @@(a, b))) |
+      ("?" ~ variable ~ unary ~> ((a, b) => ?(a, b))) }
+  private def predicate: Rule1[Expr] =
+    rule {
+      (capture(upper) ~
+         optional("(" ~ oneOrMore(term).separatedBy(",") ~ ")") ~>
+         ((a, b) => if (b.isEmpty) Pred(a) else Pred(a, b.get: _*))) |
+      (term ~ "=" ~ term ~> ((a: Term, b: Term) => propositional.Pred("=", a, b))) }
+  def term: Rule1[Term] =
+    leftAssoc(summable, ((a: Term, b: Term) => propositional.Term("+", a, b)), "+")
+  private def summable: Rule1[Term] =
+    leftAssoc(mullable, ((a: Term, b: Term) => Term("*", a, b)), "*")
+  private def mullable: Rule1[Term] =
+    rule {
+      ((capture(lower) ~
+         "(" ~
+         oneOrMore(term).separatedBy(",") ~
+         ")" ~>
+         ((a: String, b: Seq[Term]) => Term(a, b: _*)))  |
+         variable |
+         ("(" ~ term ~ ")") |
+         (str("0") ~> (() => Term("0")))) ~
+      zeroOrMore(capture("'")) ~> ((a: Term, b: Seq[_]) => wrapInQuote(a, b.length)) }
+
+  private def wrapInQuote(e: Term, n: Int): Term =
+    if (n < 1) e else wrapInQuote(Term("'", e), n - 1)
+  private def variable: Rule1[Term] = rule { capture(lower) ~> ((a: String) => Term(a)) }
+  private def upper: Rule0 =
+    rule { anyOf("PYFGCRLAOEUIDHTNSQJKXBMWVZ") ~ zeroOrMore(anyOf("0123456789")) }
+  private def lower: Rule0 =
+    rule { anyOf("pyfgcrlaoeuidhtnsqjkxbmwvz") ~ zeroOrMore(anyOf("0123456789")) }
+  private def negate: Rule1[!!] = rule { "!" ~ unary ~> propositional.!! }
+  private def parenth: Rule1[Expr] = rule { "(" ~ expression ~ ")" }
+}
+package com.volhovm.mathlogic.propositional
+
+/**
+ * @author volhovm
+ *         Created on 9/10/14
+ */
+
+sealed trait Expr {
+  def wrap(e: Expr) = e match {
+      case !!(_)  => e.toString
+      case @@(_, _)  => e.toString
+      case ?(_, _)   => e.toString
+      case _ => "(" + e.toString + ")"
+    }
+  def arguments[A](str: String, args: Seq[A]) =
+    if (args.length > 0) str + "(" + args.mkString(",") + ")" else str
+
+  def string2(divider: String) = { (a: Expr, b: Expr) => wrap(a) + divider + wrap(b) }
+  def ->(other: Expr): -> = new ->(this, other)
+  def V(other: Expr): V = new V(this, other)
+  def &(other: Expr): & = new &(this, other)
+}
+
+case class ->(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("->")(lhs, rhs) }
+case class &(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("&")(lhs, rhs)}
+case class V(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("|")(lhs, rhs)}
+case class !!(a: Expr) extends Expr { override def toString: String = "!" + wrap(a) }
+case class @@(lhs: Term, rhs: Expr) extends Expr
+  { override def toString: String = "∀" + lhs + "." + wrap(rhs) }
+case class ?(lhs: Term, rhs: Expr) extends Expr
+  { override def toString: String = "∃" + lhs + "." + wrap(rhs) }
+case class Pred(name: String, args: Term*) extends Expr
+  { override def toString = if (name.length == 1 && !name(0).isLetter && args.length == 2)
+                            args(0).toString + name + args(1)
+                            else arguments(name, args) }
+case class Term(name: String, args: Term*) extends Expr
+  { override def toString: String = if (name.length == 1 && !name(0).isLetter && args.length == 2)
+                                      args(0).toString + name + args(1)
+                                    else if (name == "'")
+                                      args(0).toString + "'"
+                                      else  arguments(name, args) }
+package com.volhovm.mathlogic.propositional
+
+/**
+ * @author volhovm
+ *         Created on 10/7/14
+ */
+
+// self-documenting i suppose
+object IOUtil {
+  def parse(string: String) = new ExpressionParser(string).simpleInputLine.run().get
+  def parseTerm(string: String) = new ExpressionParser(string).term.run().get
+
+  // In
+  def getP(fileName: String): Proof =
+    scala.io.Source.fromFile(fileName).getLines().toList.map(
+      (a: String) => new ExpressionParser(a).simpleInputLine.run().get
+    )
+
+  def getAP(fileName: String): AProof =
+    Annotator.annotate(getP(fileName))
+
+  def getD(fileName: String): Derivation = {
+    val list = scala.io.Source.fromFile(fileName).getLines().toList
+    (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse,
+     list.tail.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get))
+  }
+
+  def getAD(fileName: String): ADerivation =
+    Annotator.annotateDerivation(getD(fileName))
+
+
+  // Out
+  def printP(proof: Proof) = proof.foreach(println)
+  def printAP(proof: AProof) = {
+    val margin = proof.foldRight(0)((e, n) => math.max(e._1, n))
+    (Stream.from(0) zip proof).foreach(
+      e => println((e._1 + ". %-" + (margin + 10) + "s%-20s").format(e._2._1, e._2._2))
+    )
+  }
+
+  def header[A](derivation: (List[A], List[A])): String =
+    derivation._1.reverse.mkString(", ") + " |- " + derivation._2.last.toString
+
+  def printD(derivation: Derivation): Unit = {
+    println(header(derivation))
+    printP(derivation._2)
+  }
+
+  def printAD(derivation: ADerivation): Unit = {
+    println(header(derivation))
+    printAP(derivation._2)
+  }
+
+  // Performance
+  def stringAnnotatedExpressions(fileName: String): List[String] = {
+    val proof = getP(fileName)
+    Annotator.annotateGeneric(proof, Annotator.emptyState[String],
+    {(x, c, l) => (l + ". %-" + (proof.foldRight(0)(math.max(_, _)) + 10) + "s%-20s").format(x, c)}
+    )
+  }
+}
+package com.volhovm.mathlogic
+
+import scala.language.implicitConversions
+
+/**
+ * @author volhovm
+ *         Created on 10/7/14
+ */
+
+package object propositional {
+  def hole = ???
+
+  type Proof = List[Expr]
+  type AProof = List[(Expr, Annotation)]
+  type Context = List[Expr]
+  type Derivation = (Context, Proof)
+  type ADerivation = (Context, AProof)
+
+  // FIXME pred, term do not take into account params
+  implicit def l(expr: Expr): Int = expr match {
+      case Pred(a, list @ _*) => a.length + list.length + 2 + list.foldLeft(0)((a, b) => a + l(b))
+      case Term(a, list @ _*) => a.length + list.length + 2 + list.foldLeft(0)((a, b) => a + l(b))
+      case @@(s, a) => l(a) + 1
+      case ?(s, a) => l(a) + 1
+      case !!(a) => l(a) + 1
+      case a -> b => l(a) + l(b) + 4
+      case a & b => l(a) + l(b) + 3
+      case a V b => l(a) + l(b) + 3
+  }
+
+  private def shrt(proof: AProof): Proof =
+    proof.last._2 match {
+      case ModusPonens(i, j) => shrt(proof.take(i + 1)) ++ shrt(proof.take(j + 1)) ++
+                                List(proof.last._1)
+      case Axiom(_) => List(proof.last._1)
+      case Assumption() => List(proof.last._1)
+      case DerivationForall(i) => shrt(proof.take(i)) ++ List(proof.last._1)
+      case DerivationExists(i) => shrt(proof.take(i)) ++ List(proof.last._1)
+      case Fault() => List()
+    }
+
+//  private def shrtA(proof: AProof): AProof =
+//    proof.last._2 match {
+//      case ModusPonens(i, j) =>
+//        shrtA(proof.take(i + 1)) ++
+//        shrtA(proof.take(j + 1)) ++
+//          List(proof.last)
+//      case Axiom(_) => List(proof.last)
+//      case Assumption() => List(proof.last)
+//      case Fault() => List()
+//    }
+
+  // if implicit, we have no second chance
+  def shortenP(proof: Proof): Proof =
+    shrt(Annotator.annotate(proof))
+  def shortenD(derivation: Derivation): Derivation =
+    (derivation._1, shrt(Annotator.annotateDerivation(derivation)._2))
+  implicit def shortenAP(proof: AProof): AProof =
+    Annotator.annotate(shrt(proof))
+  implicit def shortenAD(derivation: ADerivation): ADerivation =
+    Annotator.annotateDerivation((derivation._1, shrt(derivation._2)))
+
+  def verdict(proof: AProof) =
+    proof.takeWhile(_._2 match { case Fault() => false; case _ => true}) match {
+      case a if a.length == proof.length => -1
+      case a => a.length + 1
+  }
+
+  import Proofs._
+
+  def mkD(d: Derivation): Derivation = (d._1.reverse.distinct, d._2)
+
+  def deductionApply(d: Derivation): Derivation =
+    shortenD(if (d._1.isEmpty) d
+    else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
+      case (e, _) if e == d._1.head => ident(e)
+      case (e, Axiom(n)) => deduction1(e, d._1.head)._2
+      case (e, Assumption()) => deduction1(e, d._1.head)._2
+          // looks like I haven't messed up with indexes, but I'm not sure
+      case (e, ModusPonens(n, m)) =>
+              deduction2(e, d._1.head, d._2(n), d._2(m))
+    }.flatten))
+
+  def deductionUnapply(d: Derivation): Derivation =
+    d._2.last match {
+      case a -> b => shortenD((a :: d._1, d._2.dropRight(1) :+ (a -> b) :+ a :+ b))
+      case _ => d
+    }
+
+  def subst(in: Expr, what: Term, instead_of: Term): Expr = in match {
+      case a -> b          => subst(a, what, instead_of) -> subst(b, what, instead_of)
+      case a & b           => subst(a, what, instead_of) & subst(b, what, instead_of)
+      case a V b           => subst(a, what, instead_of) V subst(b, what, instead_of)
+      case !!(a)           => !!(subst(a, what, instead_of))
+      case @@(a, b)        => @@(a, subst(b, what, instead_of))
+      case ?(a, b)         => ?(a, subst(b, what, instead_of))
+      case Pred(a, l @ _*) => Pred(a, l.map(x => substT(x, what, instead_of)): _*)
+      case t@Term(a, l @ _*) => subst(t, what, instead_of)
+    }
+
+  def substT(in: Term, what: Term, instead_of: Term): Term = in match {
+      case a if a.args.length == 0 && instead_of.name == a.name => what
+      case Term(a, l @ _*) => Term(a, l.map(x => substT(x, what, instead_of)): _*)
+    }
+
+  private def prod[A](a: (Boolean, String, A), b: (Boolean, String, A)) =
+    (if (a._2 == "-1" | b._2 == "-1") false else
+       if (a._1 == b._1 && a._1) a._2 == b._2 && a._3 == b._3
+                                            else a._1 | b._1,
+     if (a._2 == "-1" |
+           b._2 == "-1" |
+           a._1 == b._1 && a._1 && a._2 != b._2) "-1" else if (a._1) a._2 else b._2,
+     if (a._1) a._3 else b._3)
+
+  // checks if substituted is clear[x:=p]
+  // if _1 is true then _3 is substituted instead of _2 var
+  // if _1 is false then if _2 is "-1" then more than one var is subsituted
+  //                     if _2 is variable then it has >1 different sibstitutions
+  //                     if _2 is "0" exprs are equal
+  //                     if _2 is "-2" exprs are not even similar
+  def diff(clear: Expr, substituted: Expr): (Boolean, String, Expr) = clear match {
+      case a -> b => substituted match {
+        case c -> d => prod(diff(c, a), diff(d, b))
+        case x => (false, "-2", x)
+      }
+      case a & b => substituted match {
+        case c & d => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case a V b => substituted match {
+        case c V d => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case !!(a) => substituted match {
+        case !!(b) => diff(a, b)
+        case x => (false, "-2", x)
+      }
+      case @@(a, b) => substituted match {
+        case @@(c, d) => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case ?(a, b) => substituted match {
+        case ?(c, d) => prod(diff(a, c), diff(b, d))
+        case x => (false, "-2", x)
+      }
+      case Pred(a, tail1 @ _*) => substituted match {
+        case x@Pred(b, tail2 @ _*) if (a == b && tail2.length == tail1.length) =>
+          if (tail1.isEmpty)
+            (false, "0", x)
+          else
+            tail1.zip(tail2).map((a: (Expr, Expr)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x => (false, "-2", x)
+      }
+        // variable
+      case Term(a)
+          if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
+          (a.length == 1 && a(0).isLetter)) => substituted match {
+            case c@Term(b) if a == b => (false, "0", c)
+            case c : Term => (true, a, c)
+            case x => (false, "-2", x)
+      }
+      case Term(a, tail1 @ _*) => substituted match {
+        case x@Term(b, tail2 @ _*) if (a == b && tail1.length == tail2.length) =>
+          // similar
+          if (tail1.isEmpty)
+            (false, "0", x)
+          else
+            tail1.zip(tail2).map((a: (Term, Term)) => diff(a._1, a._2)).reduce(prod[Expr])
+        case x => (false, "-2", x)
+      }
+    }
+  // for every var a -> list of quantors affecting it
+  private def getAffectedVars(e: Expr, quantors: Set[Term] = Set()): Map[Term, Set[Term]] =
+      e match {
+        case @@(a, b) => getAffectedVars(b, quantors + a)
+        case ?(a, b)  => getAffectedVars(b, quantors + a)
+        case v@Term(a)
+            if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
+                  (a.length == 1 && a(0).isLetter)) =>
+          return Map(v -> quantors)
+        case a -> b => getAffectedVars(a, quantors) ++ getAffectedVars(b, quantors)
+        case a & b => getAffectedVars(a, quantors) ++ getAffectedVars(b, quantors)
+        case a V b => getAffectedVars(a, quantors) ++ getAffectedVars(b, quantors)
+        case !!(a) => getAffectedVars(a, quantors)
+        case Pred(a) => Map()
+        case Pred(a, l @ _*) => l.map(getAffectedVars(_, quantors)).reduce(_++_)
+        case Term(a) => Map()
+        case Term(a, l @ _*) => l.map(getAffectedVars(_, quantors)).reduce(_++_)
+      }
+
+  // alpha [v := theta]
+  def freeForSubstitution(theta: Expr, v: Term, alpha: Expr) : Boolean = {
+    val a = getAffectedVars(theta)
+    val b = getAffectedVars(alpha)
+    b.get(v) match {
+      case None => true
+      case Some(set) => set.toList.map((x: Term) => a.get(x) match {
+                                         case None => true
+                                         case Some(y) => !y.isEmpty && y.contains(x)
+                                       }).reduce(_&&_)
+    }
+  }
+}
+package com.volhovm.mathlogic.propositional
+
+import Proofs._
+import scala.language.implicitConversions
+
+/**
+ * @author volhovm
+ *         Created on 10/15/14
+ */
+
+object ProofMaker {
+  type Measure = List[(String, Boolean)]
+  private type ProofTree = BTree[Either[Derivation, Measure]]
+
+  private sealed trait BTree[A]
+  private case class Node[A](lhs: BTree[A], rhs: BTree[A]) extends BTree[A] {
+    override def toString: String = "Node:\n " + lhs.toString + "\n " + rhs.toString
+  }
+  private case class Leaf[A](a: A) extends BTree[A]
+
+
+  private def excluding(x: Derivation, y: Derivation): Derivation = {
+    if (x._1.tail != Nil && x._1.tail != y._1.tail)
+      throw new IllegalArgumentException(IOUtil.header(x) ++ "\n" ++ IOUtil.header(y))
+    else {
+      val p = x._1.head
+      val a = x._2.last
+      (x._1.tail,
+        deductionApply(x)._2 ++
+          deductionApply(y)._2 ++
+          tertiumNonDatur(p) ++ List[Expr](
+          (p -> a) -> ((!!(p) -> a) -> ((p V !!(p)) -> a)),
+          (!!(p) -> a) -> ((p V !!(p)) -> a),
+          (p V !!(p)) -> a,
+          a
+        ))
+    }
+  }
+
+  private def eval(e: Expr, vars: Measure): Boolean = e match {
+    case a -> b => if (eval(a, vars) && !eval(b, vars)) false else true
+    case a V b => eval(a, vars) | eval(b, vars)
+    case a & b => eval(a, vars) & eval(b, vars)
+    case !!(a) => !eval(a, vars)
+    case Pred(a) => vars.find(c => c._1 == a).get._2
+  }
+
+  private def countVars(e: Expr, s: Set[String] = Set[String]()): Set[String] = e match {
+    case a -> b => countVars(a, s) ++ countVars(b, s)
+    case a V b => countVars(a, s) ++ countVars(b, s)
+    case a & b => countVars(a, s) ++ countVars(b, s)
+    case !!(a) => countVars(a, s)
+    case Pred(a) => if (!s.contains(a)) s + a else s
+  }
+
+  private def ifNotVar[A](e: Expr, a: List[A]): List[A] = e match {
+    case Pred(_) => Nil
+    case _ => a
+  }
+
+  implicit private def measureToContext(measure: Measure): List[Expr] =
+    measure.map(a => if (a._2) Pred(a._1) else !!(Pred(a._1)))
+
+  private def foo(x: Expr, y: Expr, measure: Measure,
+                  a: (Expr, Expr) => Derivation,
+                  b: (Expr, Expr) => Derivation,
+                  c: (Expr, Expr) => Derivation,
+                  d: (Expr, Expr) => Derivation): Derivation = {
+    val ex = eval(x, measure)
+    val ey = eval(y, measure)
+    mkD(ex match {
+      case true => ey match {
+        case true => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++
+                        ifNotVar(y, makeDerivation(measure, y)._2) ++ a(x, y)._2)
+        case false => (measure, ifNotVar(x, makeDerivation(measure, x)._2) ++
+                         makeDerivation(measure, !!(y))._2 ++ b(x, y)._2)
+      }
+      case false => ey match {
+        case true => (measure, makeDerivation(measure, !!(x))._2 ++
+                        ifNotVar(y, makeDerivation(measure, y)._2) ++ c(x, y)._2)
+        case false => (measure, makeDerivation(measure, !!(x))._2 ++
+                         makeDerivation(measure, !!(y))._2 ++ d(x, y)._2)
+      }
+    })
+  }
+
+  private def makeDerivation(measure: Measure, e: Expr): Derivation = e match {
+    case a -> b => foo(a, b, measure, implicationTT, implicationTF, implicationFT, implicationFF)
+    case a V b => foo(a, b, measure, disjunctionTT, disjunctionTF, disjunctionFT, disjunctionFF)
+    case a & b => foo(a, b, measure, conjunctionTT, conjunctionTF, conjunctionFT, conjunctionFF)
+    case !!(a) => if (eval(a, measure))
+      (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationT(a)._2)
+                  else
+      (measure, ifNotVar(a, makeDerivation(measure, a)._2) ++ negationF(a)._2)
+    case Pred(_) => (List(e), List(e))
+  }
+
+  private def makeTree(
+    e: Expr,
+    list: List[String],
+    out: Measure = List()
+  ): ProofTree =
+    list match {
+      case x :: xs => Node(makeTree(e, xs, (x, true) :: out), makeTree(e, xs, (x, false) :: out))
+      case Nil => if (eval(e, out)) Leaf(Left(makeDerivation(out.reverse, e)))
+                  else Leaf(Right(out))
+    }
+
+  private def getDerivations(e: Expr): ProofTree =
+    makeTree(e, countVars(e).toList)
+
+  private def mergeAll(tree: ProofTree): Either[Derivation, Measure] =
+    tree match {
+      case Node(a, b) => mergeAll(a) match {
+        case Left(x) => mergeAll(b) match {
+          case Left(y) => Left(excluding(x, y))
+          case r@Right(measure) => r
+        }
+        case r@Right(measure) => r
+      }
+      case Leaf(a) => a
+    }
+
+  def makeProof(e: Expr): Either[Proof, Measure] =
+    mergeAll(getDerivations(e)) match {
+      case Left(a) => Left(a._2)
+      case Right(a) => Right(a)
+    }
+}
+package com.volhovm.mathlogic.propositional
+
+/**
+ * @author volhovm
+ *         Created on 10/6/14
+ */
+
+object Proofs {
+  def ident(a: Expr): Proof =
+    List[Expr](
+      a -> (a -> a),
+      (a -> (a -> a)) -> ((a -> ((a -> a) -> a)) -> (a -> a)),
+      a -> ((a -> a) -> a),
+      (a -> ((a -> a) -> a)) -> (a -> a),
+      a -> a
+    )
+
+  def deduction1(a: Expr, alpha: Expr): Derivation =
+    (List(a), List[Expr](
+      a,
+      a -> (alpha -> a),
+      alpha -> a
+    ))
+
+  def deduction2(a: Expr, alpha: Expr, e1: Expr, e2: Expr): Proof =
+    List[Expr](
+      (alpha -> e1) -> ((alpha -> (e1 -> a)) -> (alpha -> a)),
+      (alpha -> (e1 -> a)) -> (alpha -> a),
+      alpha -> a
+    )
+
+  def contraposition(a: Expr, b: Expr): Proof = List[Expr](
+    (!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))),
+    ((!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a)))) -> ((a -> b) -> ((!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))))),
+    (a -> b) -> ((!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a)))),
+    !!(b) -> (a -> !!(b)),
+    (!!(b) -> (a -> !!(b))) -> ((a -> b) -> (!!(b) -> (a -> !!(b)))),
+    (a -> b) -> (!!(b) -> (a -> !!(b))),
+    ((a -> b) -> (!!(b) -> (a -> !!(b)))) -> (((a -> b) -> ((!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))))) -> ((a -> b) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))))),
+    ((a -> b) -> ((!!(b) -> (a -> !!(b))) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))))) -> ((a -> b) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a)))),
+    (a -> b) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a))),
+    (!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))),
+    ((!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))) -> ((a -> b) -> ((!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))))),
+    (a -> b) -> ((!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))),
+    (a -> b) -> (!!(b) -> (a -> b)),
+    ((a -> b) -> (!!(b) -> (a -> b))) -> (((a -> b) -> ((!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))))) -> ((a -> b) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))))),
+    ((a -> b) -> ((!!(b) -> (a -> b)) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))))) -> ((a -> b) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))),
+    (a -> b) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))),
+    ((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))),
+    (((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a))))) -> ((a -> b) -> (((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))))),
+    (a -> b) -> (((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a))))),
+    (a -> b) -> ((a -> !!(b)) -> !!(a)),
+    ((a -> b) -> ((a -> !!(b)) -> !!(a))) -> ((a -> b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))),
+    (a -> b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a))),
+    ((a -> b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (((a -> b) -> (((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))))) -> ((a -> b) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))))),
+    ((a -> b) -> (((a -> b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))))) -> ((a -> b) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a))))),
+    (a -> b) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))),
+    ((a -> b) -> (!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a))))) -> (((a -> b) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))) -> ((a -> b) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))), ((a -> b) -> ((!!(b) -> ((a -> b) -> ((a -> !!(b)) -> !!(a)))) -> (!!(b) -> ((a -> !!(b)) -> !!(a))))) -> ((a -> b) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))),
+    (a -> b) -> (!!(b) -> ((a -> !!(b)) -> !!(a))),
+    ((a -> b) -> (!!(b) -> ((a -> !!(b)) -> !!(a)))) -> (((a -> b) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a)))) -> ((a -> b) -> (!!(b) -> !!(a)))),
+    ((a -> b) -> ((!!(b) -> ((a -> !!(b)) -> !!(a))) -> (!!(b) -> !!(a)))) -> ((a -> b) -> (!!(b) -> !!(a))),
+    (a -> b) -> (!!(b) -> !!(a))
+  )
+
+  def tertiumNonDatur(e: Expr): Proof =
+    List[Expr](e -> (e V !!(e))) ++
+      contraposition(e, e V !!(e)) ++
+      List[Expr](!!(e V !!(e)) -> !!(e)) ++
+      List[Expr](!!(e) -> (e V !!(e))) ++
+      contraposition(!!(e), e V !!(e)) ++
+      List[Expr](!!(e V !!(e)) -> !!(!!(e))) ++
+      List[Expr](
+        (!!(e V !!(e)) -> !!(e)) -> ((!!(e V !!(e)) -> !!(!!(e))) -> !!(!!(e V !!(e)))),
+        (!!(e V !!(e)) -> !!(!!(e))) -> !!(!!(e V !!(e))),
+        !!(!!(e V !!(e))),
+        !!(!!(e V !!(e))) -> (e V !!(e)),
+        e V !!(e)
+      )
+
+  def disjunctionTT(a: Expr, b: Expr): Derivation = mkD(List(a, b), List(a, a -> (a V b), a V b))
+  def disjunctionTF(a: Expr, b: Expr): Derivation =
+    mkD(List(a, !!(b)), List(a, a -> (a V b), a V b))
+  def disjunctionFT(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), b), List(b, b -> (a V b), a V b))
+  def disjunctionFF(a: Expr, b: Expr): Derivation = mkD(List(!!(a), !!(b)), List(
+    !!(a),
+    !!(b),
+    ((a V b) -> a) -> (((a V b) -> !!(a)) -> !!(a V b)),
+    !!(a) -> ((a V b) -> !!(a)),
+    (a V b) -> !!(a)) ++
+    deductionApply(mkD(List(!!(a), !!(b), a V b), List(
+      !!(a),
+      !!(b),
+      a V b) ++
+      ident(a) ++ implicationFF(b, a)._2 ++ List(
+      (a -> a) -> ((b -> a) -> ((a V b) -> a)),
+      (b -> a) -> ((a V b) -> a),
+      (a V b) -> a,
+      a)))._2 ++ List(
+    ((a V b) -> !!(a)) -> !!(a V b),
+    !!(a V b)
+  ))
+  // 9 axiom (a V b -> a) -> (a V b -> !a)
+  def conjunctionTT(a: Expr, b: Expr): Derivation =
+    mkD(List(a, b), List(a, b, a -> (b -> (a & b)), b -> (a & b), a & b))
+  def conjunctionTF(a: Expr, b: Expr): Derivation = mkD(List(a, !!(b)), List(
+    (a & b) -> b,
+    !!(b),
+    !!(b) -> ((a & b) -> !!(b)),
+    (a & b) -> !!(b),
+    ((a & b) -> b) -> (((a & b) -> !!(b)) -> !!(a & b)),
+    ((a & b) -> !!(b)) -> !!(a & b),
+    !!(a & b)
+  ))
+  def conjunctionFT(a: Expr, b: Expr): Derivation = mkD(List(!!(a), b), List(
+    (a & b) -> a,
+    !!(a),
+    !!(a) -> ((a & b) -> !!(a)),
+    (a & b) -> !!(a),
+    ((a & b) -> a) -> (((a & b) -> !!(a)) -> !!(a & b)),
+    ((a & b) -> !!(a)) -> !!(a & b),
+    !!(a & b)
+  ))
+  def conjunctionFF(a: Expr, b: Expr): Derivation = mkD(List(!!(a), !!(b)), List(
+    (a & b) -> a,
+    !!(a),
+    !!(a) -> ((a & b) -> !!(a)),
+    (a & b) -> !!(a),
+    ((a & b) -> a) -> (((a & b) -> !!(a)) -> !!(a & b)),
+    ((a & b) -> !!(a)) -> !!(a & b),
+    !!(a & b)
+  ))
+  def implicationTT(a: Expr, b: Expr): Derivation = mkD(List(a, b), List(b -> (a -> b), b, a -> b))
+  def implicationTF(a: Expr, b: Expr): Derivation = mkD(List(a, !!(b)), List(
+    a,
+    !!(b),
+    !!(b) -> ((a -> b) -> !!(b)),
+    (a -> b) -> !!(b)) ++
+    deductionApply(mkD(List(a, !!(b), a -> b), List(a, a -> b, b)))._2 ++ List(
+    ((a -> b) -> b) -> (((a -> b) -> !!(b)) -> !!(a -> b)),
+    ((a -> b) -> !!(b)) -> !!(a -> b),
+    !!(a -> b)
+  ))
+  def implicationFT(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), b), List(b -> (a -> b), b, a -> b))
+  def implicationFF(a: Expr, b: Expr): Derivation =
+    mkD(List(!!(a), !!(b)), deductionApply(mkD(List(!!(a), !!(b), a), List(
+    !!(a),
+    !!(b),
+    a,
+    (!!(b) -> a) -> ((!!(b) -> !!(a)) -> !!(!!(b))),
+    a -> (!!(b) -> a),
+    !!(b) -> a,
+    !!(a) -> (!!(b) -> !!(a)),
+    !!(b) -> !!(a),
+    (!!(b) -> !!(a)) -> !!(!!(b)),
+    !!(!!(b)),
+    !!(!!(b)) -> b,
+    b
+  )))._2)
+  // !a, !b, a |- b
+  def negationT(a: Expr): Derivation = (List(a), List(
+    a,
+    a -> (!!(a) -> a),
+    !!(a) -> a) ++
+    ident(!!(a)) ++ List(
+    (!!(a) -> a) -> ((!!(a) -> !!(a)) -> !!(!!(a))),
+    (!!(a) -> !!(a)) -> !!(!!(a)),
+    !!(!!(a))
+  ))
+  def negationF(a: Expr): Derivation = (List(!!(a)), List(!!(a)))
+}
