@@ -15,12 +15,12 @@ object Proofs {
       a -> a
     )
 
-  def deduction1(a: Expr, alpha: Expr): Derivation =
-    (List(a), List[Expr](
+  def deduction1(a: Expr, alpha: Expr): Proof =
+    List[Expr](
       a,
       a -> (alpha -> a),
       alpha -> a
-    ))
+    )
 
   def deduction2(a: Expr, alpha: Expr, e1: Expr, e2: Expr): Proof =
     List[Expr](

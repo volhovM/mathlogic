@@ -74,8 +74,8 @@ package object propositional {
     shortenD(if (d._1.isEmpty) d
     else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
       case (e, _) if e == d._1.head => ident(e)
-      case (e, Axiom(n)) => deduction1(e, d._1.head)._2
-      case (e, Assumption()) => deduction1(e, d._1.head)._2
+      case (e, Axiom(n)) => deduction1(e, d._1.head)
+      case (e, Assumption()) => deduction1(e, d._1.head)
           // looks like I haven't messed up with indexes, but I'm not sure
       case (e, ModusPonens(n, m)) =>
               deduction2(e, d._1.head, d._2(n), d._2(m))

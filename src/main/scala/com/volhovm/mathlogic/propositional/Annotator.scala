@@ -113,22 +113,22 @@ object Annotator {
       case ((a & b) -> c) if a == c => Axiom(4)
       case ((a & b) -> c) if b == c => Axiom(5)
         // TODO FREEDOM FOR SUBSTITUTION
-//      case (@@(x, a) -> b) if { val t = diff(a, b);
-//        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
-//      } => Axiom(11)
-//      case (a -> ?(x, b)) if { val t = diff(b, a);
-//        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
-//      } => Axiom(12)
+      case (@@(x, a) -> b) if { val t = diff(a, b);
+        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
+      } => Axiom(11)
+      case (a -> ?(x, b)) if { val t = diff(b, a);
+        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
+      } => Axiom(12)
       case (a -> (b V c)) if a == b => Axiom(6)
       case (a -> (b V c)) if a == c => Axiom(7)
       case (!!(!!(a)) -> b) if a == b => Axiom(10)
       case (a -> (b -> c)) if a == c => Axiom(1)
       case a if state._3.contains(a) => Assumption()
       case a if { val temp = isMP(a, state); temp._1 } => isMP(x, state)._2
-//      case (?(a, b) -> c) if state._1.contains(b -> c) && !entersFree(c, a) =>
-//        DerivationExists(state._1.get(b->c).get._2)
-//      case (a -> @@(b, c)) if state._1.contains(a -> c) && !entersFree(a, b) =>
-//        DerivationForall(state._1.get(a->c).get._2)
+      case (?(a, b) -> c) if state._1.contains(b -> c) && !entersFree(c, a) =>
+        DerivationExists(state._1.get(b->c).get._2)
+      case (a -> @@(b, c)) if state._1.contains(a -> c) && !entersFree(a, b) =>
+        DerivationForall(state._1.get(a->c).get._2)
       case _ => Fault()
     }
 
