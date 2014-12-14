@@ -7,9 +7,11 @@ package com.volhovm.mathlogic.propositional
 
 sealed trait Expr {
   def wrap(e: Expr) = e match {
-      case !!(_)  => e.toString
+      case !!(_)     => e.toString
       case @@(_, _)  => e.toString
       case ?(_, _)   => e.toString
+      case Pred(_)   => e.toString
+      case Term(_)   => e.toString
       case _ => "(" + e.toString + ")"
     }
   def arguments[A](str: String, args: Seq[A]) =

@@ -1,0 +1,8 @@
+A->B(j)|-P(b)->@j(?j(?xA->B(j)))
+A->B(j)
+?xA->B(j)
+(?xA->B(j))->?j(?xA->B(j))
+?j(?xA->B(j))
+?j(?xA->B(j))->P(b)->?j(?xA->B(j))
+P(b)->?j(?xA->B(j))
+P(b)->@j(?j(?xA->B(j)))

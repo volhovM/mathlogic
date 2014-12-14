@@ -26,8 +26,8 @@ object ProofMaker {
       val p = x._1.head
       val a = x._2.last
       (x._1.tail,
-        deductionApply(x)._2 ++
-          deductionApply(y)._2 ++
+        (deductionApply(x) match { case Right(a) => a._2; }) ++
+          (deductionApply(y) match { case Right(a) => a._2; }) ++
           tertiumNonDatur(p) ++ List[Expr](
           (p -> a) -> ((!!(p) -> a) -> ((p V !!(p)) -> a)),
           (!!(p) -> a) -> ((p V !!(p)) -> a),

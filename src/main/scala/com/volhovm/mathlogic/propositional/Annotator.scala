@@ -95,7 +95,7 @@ object Annotator {
 
   /**
    * The method that matches expression and returns
-   * it's annotation if succeeded or Fault() otherwise
+   * it's annotation if succeeded or Fault(...) otherwise
    * @param x - expression to examine
    * @param state - current state
    * @tparam A - see State[A]
@@ -103,7 +103,7 @@ object Annotator {
    */
   private def getConstructionType[A](x: Expr, state: State[A]): Annotation =
     x match {
-      // Axioms
+        // Axioms
       case ((a -> b) -> ((c -> (d -> e)) -> (f -> g)))
           if a == c && b == d && e == g && a == f => Axiom(2)
       case ((a -> b) -> ((c -> d) -> ((e V f) -> g)))
@@ -112,7 +112,6 @@ object Annotator {
       case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
       case ((a & b) -> c) if a == c => Axiom(4)
       case ((a & b) -> c) if b == c => Axiom(5)
-        // TODO FREEDOM FOR SUBSTITUTION
       case (@@(x, a) -> b) if { val t = diff(a, b);
         (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
       } => Axiom(11)
@@ -124,12 +123,27 @@ object Annotator {
       case (!!(!!(a)) -> b) if a == b => Axiom(10)
       case (a -> (b -> c)) if a == c => Axiom(1)
       case a if state._3.contains(a) => Assumption()
+
+        // Rules of deriving
       case a if { val temp = isMP(a, state); temp._1 } => isMP(x, state)._2
       case (?(a, b) -> c) if state._1.contains(b -> c) && !entersFree(c, a) =>
         DerivationExists(state._1.get(b->c).get._2)
       case (a -> @@(b, c)) if state._1.contains(a -> c) && !entersFree(a, b) =>
         DerivationForall(state._1.get(a->c).get._2)
-      case _ => Fault()
+
+        //Errors
+        // TODO: Add deduction fail
+      case (@@(x, a) -> b) if { val t = diff(a, b);
+        (t._1 && t._2 == x.name | t._2 == "0") && !freeForSubstitution(t._3, Term(t._2), a)
+      } => { val t = diff(b, a); Fault(NotFreeForSubst(t._3, a, Term(t._2))) }
+      case (a -> ?(x, b)) if { val t = diff(b, a);
+        (t._1 && t._2 == x.name | t._2 == "0") && !freeForSubstitution(t._3, Term(t._2), a)
+      } => { val t = diff(b, a); Fault(NotFreeForSubst(t._3, a, Term(t._2))) }
+      case (?(a, b) -> c) if state._1.contains(b -> c) && entersFree(c, a) =>
+        Fault(EntersFree(c, a))
+      case (a -> @@(b, c)) if state._1.contains(a -> c) && entersFree(a, b) =>
+        Fault(EntersFree(a, b))
+      case _ => Fault(Common("Cannot match any annotation type"))
     }
 
   private def isMP[A](a: Expr, state: State[A]): (Boolean, Annotation) =
@@ -140,12 +154,12 @@ object Annotator {
             e => checkState(state._1.get(e._1 -> a))).reduceRight(
             (a, b) => if (checkState(state._1.get(a._1))) a else b)
         state._1.get(expr) match {
-          case Some((Fault(), _)) => (false, Fault())
+          case Some((Fault(a), _)) => (false, Fault(a))
           case Some((_, newLine2)) => (true, ModusPonens(newLine2, newLine1))
-          case _ => (false, Fault())
+          case _ => (false, Fault(Common("Never used")))
         }
-      case _ => (false, Fault())
-    } else (false, Fault())
+      case _ => (false, Fault(Common("Never used")))
+    } else (false, Fault(Common("Never used")))
 
   /**
    * Checks if this state.get contains Fault
@@ -154,7 +168,7 @@ object Annotator {
   private def checkState(option: Option[(Annotation, Int)]): Boolean =
     option match {
       case None => false
-      case Some((Fault(), _)) => false
+      case Some((Fault(_), _)) => false
       case _ => true
     }
 

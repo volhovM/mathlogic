@@ -34,21 +34,10 @@ package object propositional {
                                 List(proof.last._1)
       case Axiom(_) => List(proof.last._1)
       case Assumption() => List(proof.last._1)
-      case DerivationForall(i) => shrt(proof.take(i)) ++ List(proof.last._1)
-      case DerivationExists(i) => shrt(proof.take(i)) ++ List(proof.last._1)
-      case Fault() => List()
+      case DerivationForall(i) => shrt(proof.take(i + 1)) ++ List(proof.last._1)
+      case DerivationExists(i) => shrt(proof.take(i + 1)) ++ List(proof.last._1)
+      case Fault(_) => List()
     }
-
-//  private def shrtA(proof: AProof): AProof =
-//    proof.last._2 match {
-//      case ModusPonens(i, j) =>
-//        shrtA(proof.take(i + 1)) ++
-//        shrtA(proof.take(j + 1)) ++
-//          List(proof.last)
-//      case Axiom(_) => List(proof.last)
-//      case Assumption() => List(proof.last)
-//      case Fault() => List()
-//    }
 
   // if implicit, we have no second chance
   def shortenP(proof: Proof): Proof =
@@ -61,7 +50,9 @@ package object propositional {
     Annotator.annotateDerivation((derivation._1, shrt(derivation._2)))
 
   def verdict(proof: AProof) =
-    proof.takeWhile(_._2 match { case Fault() => false; case _ => true}) match {
+    proof.takeWhile(_._2 match {
+                      case Fault(_) => false;
+                      case _ => true}) match {
       case a if a.length == proof.length => -1
       case a => a.length + 1
   }
@@ -70,16 +61,49 @@ package object propositional {
 
   def mkD(d: Derivation): Derivation = (d._1.reverse.distinct, d._2)
 
-  def deductionApply(d: Derivation): Derivation =
-    shortenD(if (d._1.isEmpty) d
-    else (d._1.tail, Annotator.annotateDerivation(d)._2.map {
-      case (e, _) if e == d._1.head => ident(e)
-      case (e, Axiom(n)) => deduction1(e, d._1.head)
-      case (e, Assumption()) => deduction1(e, d._1.head)
-          // looks like I haven't messed up with indexes, but I'm not sure
-      case (e, ModusPonens(n, m)) =>
-              deduction2(e, d._1.head, d._2(n), d._2(m))
-    }.flatten))
+  def simpleDeductionApply(d: Derivation): Derivation =
+    shortenD(if (d._1.isEmpty)
+      d
+    else
+      (d._1.tail, Annotator.annotateDerivation(d)._2.map {
+         case (e, _) if e == d._1.head => ident(e)
+         case (e, Axiom(n)) => deduction1(e, d._1.head)
+         case (e, Assumption()) => deduction1(e, d._1.head)
+         case (e, ModusPonens(n, m)) =>
+           deduction2(e, d._1.head, d._2(n), d._2(m))
+       }.flatten))
+
+  def deductionApply(d: Derivation): Either[(Annotation, Expr, Term, Expr), Derivation] =
+    if (d._1.isEmpty)
+      Right(d)
+    else
+      Annotator.annotateDerivation(d)._2.map {
+               case (e, _) if e == d._1.head => Right(d._1.tail, ident(e))
+               case (e@(@@(x, a) -> b), Axiom(11)) => if (!entersFree(d._1.head, x))
+                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(11), e, x, d._1.head))
+               case (e@(a -> ?(x, b)), Axiom(12)) => if (!entersFree(d._1.head, x))
+                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(12), e, x, d._1.head))
+               case (e, Axiom(n)) => Right(d._1.tail, deduction1(e, d._1.head))
+               case (e, Assumption()) => Right(d._1.tail, deduction1(e, d._1.head))
+               case (e, ModusPonens(n, m)) =>
+                 Right(d._1.tail, deduction2(e, d._1.head, d._2(n), d._2(m)))
+               case (e@(a -> @@(x, b)), DerivationForall(n)) =>
+                 if (!entersFree(d._1.head, x))
+                   Right(d._1.tail, deduction3(d._1.head, a, x, b))
+                 else Left((DerivationForall(n), e, x, d._1.head))
+               case (e@(?(x, a) -> b), DerivationExists(n)) =>
+                 if (!entersFree(d._1.head, x))
+                   Right(d._1.tail, deduction4(d._1.head, x, a, b))
+                 else Left((DerivationExists(n), e, x, d._1.head))
+                   // TODO +case fault? How will i track it in this case?
+             }.reduceLeft((a, b) => a match {
+                            case Right(der1) => b match {
+                              case Right(der2) => Right(der1._1, der1._2 ++ der2._2)
+                              case a => a
+                            }
+                            case a => a
+                          })
+
 
   def deductionUnapply(d: Derivation): Derivation =
     d._2.last match {
