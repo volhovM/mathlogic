@@ -40,9 +40,9 @@ package object propositional {
     }
 
   // if implicit, we have no second chance
-  def shortenP(proof: Proof): Proof =
+  implicit def shortenP(proof: Proof): Proof =
     shrt(Annotator.annotate(proof))
-  def shortenD(derivation: Derivation): Derivation =
+  implicit def shortenD(derivation: Derivation): Derivation =
     (derivation._1, shrt(Annotator.annotateDerivation(derivation)._2))
   implicit def shortenAP(proof: AProof): AProof =
     Annotator.annotate(shrt(proof))

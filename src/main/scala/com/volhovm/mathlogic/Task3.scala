@@ -14,7 +14,7 @@ import IOUtil._
 object Task3 {
   def main(args: Array[String]): Unit = makeProof(getP("third.in")(0)) match {
       case Left(a) if verdict(Annotator.annotate(a)) == -1 => printP(shortenP(a))
-      case Left(_) => println("We've made up a proof, but it isn't right. Eh?")
+      case Left(_) => println("We've made up a proof, but it isn't right. Eh? U baka?")
       case Right(measure) =>
         println("Высказывание ложно при " +
                   measure.map(

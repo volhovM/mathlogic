@@ -221,7 +221,7 @@ sealed trait CNF extends Ordered[CNF]{
 case class CList(list: List[(CNF, Int)], atom: Atom) extends CNF {
   if (list.length == 0) throw new Exception("Nil in CList")
   override def toString =
-    list.map(a => (if (a._2 > 1) a._2.toString + "*" else ""
+    list.map(a => (if (a._2 > 1) a._2.toString + "*" else "")
                + "w" + (if (a._1 != Atom(1))
                  "^(" + a._1.toString + ")" else "")).mkString("+") + (if (atom != zero)
                                                                   "+" + atom.toString else "")

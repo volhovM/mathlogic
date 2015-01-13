@@ -15,6 +15,10 @@ scalacOptions in Test ++= Seq("-Yrangepos")
 // Read here for optional dependencies:
 // http://etorreborre.github.io/specs2/guide/org.specs2.guide.Runners.html#Dependencies
 
+fork in run := true
+
+javaOptions in run += "-Xprof"
+
 scalacOptions ++= Seq("-feature")
 
 initialCommands in console := "import com.volhovm.mathlogic.propositional._; import IOUtil._; import com.volhovm.mathlogic.ordinals._;"

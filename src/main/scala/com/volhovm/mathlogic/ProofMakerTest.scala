@@ -39,7 +39,11 @@ object ProofMakerTest extends App {
     { println("Testing: " + x + "... ")
       makeProof(x) match {
         case Left(a) if verdict(Annotator.annotate(a)) == -1 =>
-          println("[OK]" + "[" + shortenP(a).length + "]")
+          println("[OK]"
+                    // ATTENTION
+                    // commenting next line gives performance boost
+                    //+ "[" + shortenP(a).length + "]"
+          )
         case Left(_) => println("[FAIL]")
         case Right(measure) => println("[FAIL] On set: " + measure.mkString(", "))
       }
