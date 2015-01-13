@@ -15,6 +15,8 @@ object ProofMakerTest extends App {
   val b = Pred("b")
   val c = Pred("c")
   val d = Pred("d")
+  val e = Pred("e")
+  val f = Pred("f")
   val tautologies: List[Expr] = List(
       a -> a,
       b -> (a -> b),
@@ -30,6 +32,7 @@ object ProofMakerTest extends App {
       (a -> b -> c) -> ((a & b) -> c),
       ((a & b) -> c) -> (a -> (b -> c)),
       (c -> a -> b) -> (c -> a) -> b,
+      (a V b V c V d V e V f) -> (a & b & c & d & e & f),
       (c & !!(d & c) -> c -> b) V (a V !!(a)) // IT WORKS OH MY GOD
     )
   tautologies.foreach(x =>
