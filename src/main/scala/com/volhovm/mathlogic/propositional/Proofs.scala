@@ -131,6 +131,7 @@ object Proofs {
       (((a&b)->c)->((a->((b->((a&b)->c))->(b->c)))->(a->(b->c))))->(((a&b)->c)->(a->(b->c))),
       ((a&b)->c)->(a->(b->c))
       )
+
   def implToCon(a: Expr, b: Expr, c: Expr) =
     List[Expr](
       ((a&b)->b)->(((a&b)->(b->c))->((a&b)->c)),
