@@ -17,6 +17,7 @@ package object ordinals {
   def w = po("w")
   val zero = Atom(BigInt(0))
   val one = Atom(BigInt(1))
+  implicit def intToBigint(i: Int): BigInt = BigInt(i)
   implicit def oToC(o: Ordinal): CNF =
     o match
     {

@@ -23,29 +23,29 @@ object CNF {
       case CList(list, a) => CList((pair._1, pair._2) :: list, a)
     }
 
-
   // natural to infinite power
-//  def exp1(p: Atom, b: CNF): CNF = b match {
-//      case a if (b.fe == one) =>
-//        CList(List((Atom(b.fc),
-//                    (p.nat powB b.rest.asInstanceOf[Atom].nat))),
-//              zero)
-//      case a if (b.rest.isInstanceOf[Atom]) =>
-//        CList(List(
-//                (CList(List((b.fe - one, b.fc)), zero),
-//                 (p.nat powB b.rest.asInstanceOf[Atom].nat))
-//              ),
-//              zero)
-//      case _ =>
-//        val c = exp1(p, b.rest)
-//        CList(List((addPair((b.fe - one, 1), c.fe),c.fc)), zero)
-//    }
-
-  def exp1(p: Atom, b: CNF) = b match {
-      case Atom(a) => Atom(p.nat powB a)
-      case CList(l, a) =>
-        addPair((l.foldLeft[CNF](zero)((x, y) => x + y._1), (p.nat powB a.nat) * l.last._2), zero)
+  def exp1(p: Atom, b: CNF): CNF = b match {
+      case a if (b.fe == one) =>
+        CList(List((Atom(b.fc),
+                    (p.nat powB b.rest.asInstanceOf[Atom].nat))),
+              zero)
+      case a if (b.rest.isInstanceOf[Atom]) =>
+        CList(List(
+                (CList(List((b.fe - one, b.fc)), zero),
+                 (p.nat powB b.rest.asInstanceOf[Atom].nat))
+              ),
+              zero)
+      case _ =>
+        val c = exp1(p, b.rest)
+        CList(List((addPair((b.fe - one, b.fc), c.fe),c.fc)), zero)
     }
+
+
+//  def exp1(p: Atom, b: CNF) = b match {
+//      case Atom(a) => Atom(p.nat powB a)
+//      case CList(l, a) =>
+//        addPair((l.foldLeft[CNF](zero)((x, y) => x + y._1), (p.nat powB a.nat) * l.last._2), zero)
+//    }
 
   // limit to natural power
   def exp2(a: CNF, q: Atom): CNF = q match {
@@ -58,7 +58,7 @@ object CNF {
       case `zero` => one
       case `one` => a
       case x if a.limitp => exp2(a, q)
-      case Atom(n) => a * exp3(a, Atom(n - 1))
+      case Atom(n) => exp3(a, Atom(n - 1)) * a
     }
 
   def exp4(a: CNF, b: CNF): CNF =
@@ -213,15 +213,18 @@ sealed trait CNF extends Ordered[CNF]{
 // two of this at one time
 case class CList(list: List[(CNF, Nat)], atom: Atom) extends CNF {
   if (list.length == 0) throw new Exception("Nil in CList")
-//  override def toString =
-//    list.map(a => "(w" + (if (a._1 != one)
-//                           "^(" + a._1.toString + ")"
-//                         else "") + ")"
-//               + (if (a._2 != 1) "*" + a._2.toString else ""))
-//      .mkString("+") + (if (atom != zero)
-//                          "+" + atom.toString else "")
+  if (list.map(a => a._1).distinct.length != list.length) throw new Exception("CList order failure")
+  for (i <- 1 to list.length - 1)
+    if (list(i - 1)._1 <= list(i)._1) throw new Exception("CList order failure")
   override def toString =
-    list.map(a => "( w^(" + a._1.toString + ") )*" + a._2).mkString("+") + " + " + atom.toString
+    list.map(a => "(w" + (if (a._1 != one)
+                           "^(" + a._1.toString + ")"
+                         else "") + ")"
+               + (if (a._2 != 1) "*" + a._2.toString else ""))
+      .mkString("+") + (if (atom != zero)
+                          "+" + atom.toString else "")
+//  override def toString =
+//    list.map(a => "( w^(" + a._1.toString + ") )*" + a._2).mkString("+") + " + " + atom.toString
 }
 
 case class Atom(nat: Nat) extends CNF {

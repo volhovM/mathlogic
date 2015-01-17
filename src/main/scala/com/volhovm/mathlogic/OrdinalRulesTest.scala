@@ -10,11 +10,11 @@ object OrdinalRulesTest extends App {
       randAtom
     else randCList(seed)
 
-  val randAtom: Atom = Atom(Random.nextInt(100))
+  val randAtom: Atom = Atom(Random.nextInt(20))
 
   def randCList(seed: Double): CList =
     CList(
-      (0 to (Random.nextInt((50 * seed).toInt + 1))).toList.map(
+      (0 to (Random.nextInt((10 * seed).toInt + 1))).toList.map(
         _ => (randCNF(seed / 3))).sortWith(_ > _).distinct zip
         (1 to 50).toList.map(_ => BigInt(Random.nextInt(20) + 1)),
       randAtom)
@@ -23,12 +23,23 @@ object OrdinalRulesTest extends App {
       ("a=a", (a, a))
         ,("b=b", (b, b))
         // plus
+        ,("b<c => a + b < a + c", (zero, if ((b < c) & (a + b < a + c))
+                                     zero else if (b >= c) zero else one))
+        ,("a<w^b => a + w^b = w^b", (zero, if(a < CList(List((b, 1)), zero) &&
+                                                a + CList(List((b, 1)), zero)
+                                                == CList(List((b, 1)), zero))
+                                      zero else if (a >= CList(List((b, 1)), zero)) zero else one))
+
         ,("a+(b+c) = (a+b)+c", (a + (b + c), (a + b) + c))
         ,("a+0=a", (a + zero, a))
         ,("0+a=a", (zero + a, a))
         // mul
         ,("a*(b*c) = (a*b)*c", (a * (b * c), (a * b) * c))
         ,("a*(b+1) = (a*b)+a", (a * (b + one), (a * b) + a))
+        ,("b<c => a*b<a*c", (zero, if (b < c & (a * b < a * c))
+                               zero else if (b >= c) zero else one))
+        ,("b<c => a*b≤a*c", (zero, if (b < c & a * b <= a * c)
+                               zero else if (b >= c) zero else one))
         ,("0*a=0", (zero * a, zero))
         ,("a*0=0", (a * zero, zero))
         // exp
@@ -36,24 +47,12 @@ object OrdinalRulesTest extends App {
         ,("0^a=0", (zero ^ a, zero))
         ,("a^(b+1)=(a^b)*a", (a ^ (b + one), (a ^ b) * a))
         ,("a^b=(a^(b-1))*a if b < w", (a^b, if (b < po("w")) (a ^ (b - 1)) * a else a^b))
-        // fails for
-        // ordCalc> a
-        // Normal form: 39
-        // ordCalc> b
-        // Normal form: (( w^( (( w^39 )*19 ) + 39 ) )*19 ) + 39
-        // ordCalc> c
-        // Normal form: (( w^96 )*11 ) + 96
-        // ordCalc> (a^b)^c
-        // Normal form: (( w^( (( w^135 )*11 ) + (( w^39 )*1824 ) + 39 ) )*2139307801779352658255999530788892138673649999164733823189087221 )
-        // ordCalc> a^(b*c)
-        // Normal form: (( w^( (( w^39 )*38 ) + 39 ) )*205373548970817855192575954955733645312670399919814447026152373216 )
-
-        // ,("(a^b)^c = a^(b*c)", ((a ^ b) ^ c, a ^ (b * c)))
+        ,("(a^b)^c = a^(b*c)", ((a ^ b) ^ c, a ^ (b * c)))
 
         // this rule is failing on a = 96, b = (w^96)*8 + 96, c = (w^96)*11 + 96
         // I tested it on normal calc too
 
-        // ,("(a^b)*(a^c)=(a^(b+c))", ((a ^ b) * (a ^ c), a ^ (b + c)))
+         ,("(a^b)*(a^c)=(a^(b+c))", ((a ^ b) * (a ^ c), a ^ (b + c)))
     )
 
   def checkRules(list: List[(String,(CNF, CNF))]): Option[String] =
@@ -82,5 +81,5 @@ object OrdinalRulesTest extends App {
     }
   }
 
-  runTests(100, 0.8)
+  runTests(100, 0.5)
 }
