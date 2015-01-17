@@ -1,5 +1,8 @@
 package com.volhovm.mathlogic.ordinals
 
+import scala.{Int => Int}
+import scala.math.{BigInt => Nat}
+import scala.language.reflectiveCalls
 // http://www.ccs.neu.edu/home/pete/pub/cade-algorithms-ordinal-arithmetic.pdf
 
 sealed trait Ordinal
@@ -15,43 +18,51 @@ case class W() extends Ordinal
 { override def toString = "w" }
 
 object CNF {
-  def addPair(pair: (CNF, Int), that: CNF) = that match {
+  def addPair(pair: (CNF, Nat), that: CNF) = that match {
       case t@Atom(n) => CList(List((pair._1, pair._2)), t)
       case CList(list, a) => CList((pair._1, pair._2) :: list, a)
     }
 
 
   // natural to infinite power
-  def exp1(p: Atom, b: CNF): CNF = b match {
-      case a if (b.fe == Atom(1)) =>
-        CList(List((Atom(b.fc),
-                    math.pow(p.nat, b.rest.asInstanceOf[Atom].nat).toInt)),
-              zero)
-      case a if (b.rest.isInstanceOf[Atom]) =>
-        CList(List(
-                (CList(List((b.fe - Atom(1), b.fc)), zero),
-                 math.pow(p.nat, b.rest.asInstanceOf[Atom].nat).toInt)),
-              zero)
-      case _ =>
-        val c = exp1(p, b.rest)
-        CList(List((addPair((b.fe - Atom(1), 1), c.fe),c.fc)), zero)
+//  def exp1(p: Atom, b: CNF): CNF = b match {
+//      case a if (b.fe == one) =>
+//        CList(List((Atom(b.fc),
+//                    (p.nat powB b.rest.asInstanceOf[Atom].nat))),
+//              zero)
+//      case a if (b.rest.isInstanceOf[Atom]) =>
+//        CList(List(
+//                (CList(List((b.fe - one, b.fc)), zero),
+//                 (p.nat powB b.rest.asInstanceOf[Atom].nat))
+//              ),
+//              zero)
+//      case _ =>
+//        val c = exp1(p, b.rest)
+//        CList(List((addPair((b.fe - one, 1), c.fe),c.fc)), zero)
+//    }
+
+  def exp1(p: Atom, b: CNF) = b match {
+      case Atom(a) => Atom(p.nat powB a)
+      case CList(l, a) =>
+        addPair((l.foldLeft[CNF](zero)((x, y) => x + y._1), (p.nat powB a.nat) * l.last._2), zero)
     }
 
   // limit to natural power
   def exp2(a: CNF, q: Atom): CNF = q match {
-      case Atom(1) => a
+      case `one` => a
       case Atom(n) => CList(List((a.fe * Atom(n - 1), 1)), zero) * a
     }
 
   // infinite to natural power
   def exp3(a: CNF, q: Atom): CNF = q match {
-      case `zero` => Atom(1)
-      case Atom(1) => a
+      case `zero` => one
+      case `one` => a
       case x if a.limitp => exp2(a, q)
       case Atom(n) => a * exp3(a, Atom(n - 1))
     }
 
-  def exp4(a: CNF, b: CNF): CNF = CList(List((a.fe * b.limitpart, 1)), zero) * exp3(a, b.natpart)
+  def exp4(a: CNF, b: CNF): CNF =
+    CList(List((a.fe * b.limitpart, 1)), zero) * exp3(a, b.natpart)
 }
 
 sealed trait CNF extends Ordered[CNF]{
@@ -105,11 +116,11 @@ sealed trait CNF extends Ordered[CNF]{
     }
 
   def fe: CNF = this match {
-      case Atom(_)        => Atom(0)
+      case Atom(_)        => zero
       case CList(list, _) => list.head._1
     }
 
-  def fc: Int = this match {
+  def fc: Nat = this match {
       case Atom(n)        => n
       case CList(list, _) => list.head._2
     }
@@ -123,24 +134,6 @@ sealed trait CNF extends Ordered[CNF]{
       case Atom(_)        => 1
       case t@CList(_, _) => t.fe.size + t.rest.size
     }
-
-  // FIXME
-  def @@(that: CNF): CNF = this match {
-      case Atom(_) => that
-      case t@CList(l, a) => (t.rest @@ that) match {
-        case a@Atom(b) => CList(l, a)
-        case CList(l2, a2) => CList(l ::: l2, a2)
-      }
-    }
-
-  // index of the first exp of this ≤ b.fe
-  def c(b: CNF): Int = if (b.fe < this.fe) 1 + this.rest.c(b) else 0
-
-  // skips over first n elems of this, then calls c
-  def count(b: CNF, n: Int) = n + this.restn(n).c(b)
-
-  // skips n of this, adds rest to b
-  def padd(b: CNF, n: Int) = this.firstn(n) @@ (this.restn(n) + b)
 
   // true if ordinal is limit
   def limitp: Boolean = this match {
@@ -204,11 +197,11 @@ sealed trait CNF extends Ordered[CNF]{
 
 
   def ^(that: CNF) = this match {
-      case Atom(1) => Atom(1)
-      case a if (that == Atom(0)) => Atom(1)
-      case Atom(0) => Atom(0)
+      case `one` => one
+      case a if (that == zero) => one
+      case `zero` => zero
       case t@Atom(n) => that match {
-        case Atom(m) => Atom(math.pow(n, m).toInt)
+        case Atom(m) => Atom(n powB m)
         case _ => exp1(t, that)
       }
       case a if (that.isInstanceOf[Atom]) => exp3(this, that.asInstanceOf[Atom])
@@ -218,16 +211,20 @@ sealed trait CNF extends Ordered[CNF]{
 
 // Nil + atom, atom -- do not allow to use
 // two of this at one time
-case class CList(list: List[(CNF, Int)], atom: Atom) extends CNF {
+case class CList(list: List[(CNF, Nat)], atom: Atom) extends CNF {
   if (list.length == 0) throw new Exception("Nil in CList")
+//  override def toString =
+//    list.map(a => "(w" + (if (a._1 != one)
+//                           "^(" + a._1.toString + ")"
+//                         else "") + ")"
+//               + (if (a._2 != 1) "*" + a._2.toString else ""))
+//      .mkString("+") + (if (atom != zero)
+//                          "+" + atom.toString else "")
   override def toString =
-    list.map(a => (if (a._2 > 1) a._2.toString + "*" else "")
-               + "w" + (if (a._1 != Atom(1))
-                 "^(" + a._1.toString + ")" else "")).mkString("+") + (if (atom != zero)
-                                                                  "+" + atom.toString else "")
+    list.map(a => "( w^(" + a._1.toString + ") )*" + a._2).mkString("+") + " + " + atom.toString
 }
 
-case class Atom(nat: Int) extends CNF {
+case class Atom(nat: Nat) extends CNF {
   if (nat < 0) throw new Exception("Atom should contain int >= 0")
   override def toString = nat.toString
 }
