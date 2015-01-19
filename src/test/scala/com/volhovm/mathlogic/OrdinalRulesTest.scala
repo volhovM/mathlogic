@@ -28,8 +28,7 @@ object OrdinalRulesTest extends App {
         ,("a<w^b => a + w^b = w^b", (zero, if(a < CList(List((b, 1)), zero) &&
                                                 a + CList(List((b, 1)), zero)
                                                 == CList(List((b, 1)), zero))
-                                      zero else if (a >= CList(List((b, 1)), zero)) zero else one))
-
+                                       zero else if (a >= CList(List((b, 1)), zero)) zero else one))
         ,("a+(b+c) = (a+b)+c", (a + (b + c), (a + b) + c))
         ,("a+0=a", (a + zero, a))
         ,("0+a=a", (zero + a, a))
@@ -48,20 +47,16 @@ object OrdinalRulesTest extends App {
         ,("a^(b+1)=(a^b)*a", (a ^ (b + one), (a ^ b) * a))
         ,("a^b=(a^(b-1))*a if b < w", (a^b, if (b < po("w")) (a ^ (b - 1)) * a else a^b))
         ,("(a^b)^c = a^(b*c)", ((a ^ b) ^ c, a ^ (b * c)))
-
-        // this rule is failing on a = 96, b = (w^96)*8 + 96, c = (w^96)*11 + 96
-        // I tested it on normal calc too
-
-         ,("(a^b)*(a^c)=(a^(b+c))", ((a ^ b) * (a ^ c), a ^ (b + c)))
+        ,("(a^b)*(a^c)=(a^(b+c))", ((a ^ b) * (a ^ c), a ^ (b + c)))
     )
 
   def checkRules(list: List[(String,(CNF, CNF))]): Option[String] =
-      list.foldLeft[Option[String]](None)((a: Option[String], b: (String, (CNF, CNF))) =>
-        a match {
-          case Some(errmsg) => Some(errmsg)
-          case None         => if (b._2._1 == b._2._2) None
-                               else Some(b._1 + ": \n" + b._2._1 + " !=\n" + b._2._2)
-        })
+    list.foldLeft[Option[String]](None)((a: Option[String], b: (String, (CNF, CNF))) =>
+      a match {
+        case Some(errmsg) => Some(errmsg)
+        case None         => if (b._2._1 == b._2._2) None
+                             else Some(b._1 + ": \n" + b._2._1 + " !=\n" + b._2._2)
+      })
 
   def runTests(tests: Int, hardness: Double) = {
     var error: Boolean = false
@@ -72,9 +67,10 @@ object OrdinalRulesTest extends App {
       val d = randCNF(i.toDouble / tests * hardness)
       checkRules(rules(a, b, c, d)) match {
         case None => println("Test #" + i + " OK")
+
         case Some(err) => { error = true; println("Test #" + i + " FAILED"
-                                                  + ":\n" + err
-                                                  + "\n a, b, c, d:\n" + a + "\n" + b + "\n"
+                                                    + ":\n" + err
+                                                    + "\n a, b, c, d:\n" + a + "\n" + b + "\n"
                                                     + c + "\n" + d
                              ) }
       }
