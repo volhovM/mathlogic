@@ -79,10 +79,10 @@ package object propositional {
     else
       Annotator.annotateDerivation(d)._2.map {
                case (e, _) if e == d._1.head => Right(d._1.tail, ident(e))
-               case (e@(@@(x, a) -> b), Axiom(11)) => if (!entersFree(d._1.head, x))
-                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(11), e, x, d._1.head))
-               case (e@(a -> ?(x, b)), Axiom(12)) => if (!entersFree(d._1.head, x))
-                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(12), e, x, d._1.head))
+//               case (e@(@@(x, a) -> b), Axiom(11)) => if (!entersFree(d._1.head, x))
+//                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(11), e, x, d._1.head))
+//               case (e@(a -> ?(x, b)), Axiom(12)) => if (!entersFree(d._1.head, x))
+//                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(12), e, x, d._1.head))
                case (e, Axiom(n)) => Right(d._1.tail, deduction1(e, d._1.head))
                case (e, Assumption()) => Right(d._1.tail, deduction1(e, d._1.head))
                case (e, ModusPonens(n, m)) =>

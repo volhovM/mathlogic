@@ -112,11 +112,17 @@ object Annotator {
       case (a -> (b -> (c & d))) if a == c && b == d => Axiom(3)
       case ((a & b) -> c) if a == c => Axiom(4)
       case ((a & b) -> c) if b == c => Axiom(5)
-      case (@@(x, a) -> b) if { val t = diff(a, b);
-        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
+        // @b@a(a=b->a=t->b=t)->@a(a=t->a=t->t=t)
+        // not working because of diff
+      case (@@(x, a) -> b) if {
+        val t = diff(a, b);
+        (t._1 && t._2 == x.name || t._2 == "0") &&
+        freeForSubstitution(t._3, Term(t._2), a)
       } => Axiom(11)
-      case (a -> ?(x, b)) if { val t = diff(b, a);
-        (t._1 && t._2 == x.name | t._2 == "0") && freeForSubstitution(t._3, Term(t._2), a)
+      case (a -> ?(x, b)) if {
+        val t = diff(b, a);
+        (t._1 && t._2 == x.name || t._2 == "0") &&
+        freeForSubstitution(t._3, Term(t._2), a)
       } => Axiom(12)
       case (a -> (b V c)) if a == b => Axiom(6)
       case (a -> (b V c)) if a == c => Axiom(7)
@@ -124,15 +130,39 @@ object Annotator {
       case (a -> (b -> c)) if a == c => Axiom(1)
       case a if state._3.contains(a) => Assumption()
 
-        // Rules of deriving
+      // Axioms of FA
+      case Pred("=", a, b) -> Pred("=", Term("'", c), Term("'", d))
+          if a == c && b == d => Axiom(21)
+      case Pred("=", a, b) -> (Pred("=", c, d) -> Pred("=", e, f))
+            if a == c && b == e && d == f => Axiom(22)
+      case Pred("=", Term("'", a), Term("'", b)) -> Pred("=", c, d)
+          if c == a && d == b => Axiom(23)
+      case !!(Pred("=", Term("'", a), Term("0"))) => Axiom(24)
+      case Pred("=", Term("+", a, Term("'", b)), Term("'", Term("+", c, d)))
+          if a == c && b == d => Axiom(25)
+      case Pred("=", Term("+", a, Term("0")), b)
+          if a == b => Axiom(26)
+      case Pred("=", Term("*", a, Term("0")), Term("0")) => Axiom(27)
+      case Pred("=", Term("*", a, Term("'", b)), Term("+", Term("*", c, d), e))
+          if a == c && a == e && b == d => Axiom(28)
+      case (a1 & @@(x, a2 -> a3)) -> a
+          if {
+            val d1 = diff(a, a1)
+            val d2 = diff(a, a3)
+            entersFree(a, x) &&
+            a2 == a &&
+            (d1._1 && d1._3 == Term("0") && d1._2 == x.toString) &&
+            (d2._1 && d2._3 == Term("'", x) && d2._2 == x.toString)
+          } => Axiom(29)
+
+      // Rules of deriving
       case a if { val temp = isMP(a, state); temp._1 } => isMP(x, state)._2
       case (?(a, b) -> c) if state._1.contains(b -> c) && !entersFree(c, a) =>
         DerivationExists(state._1.get(b->c).get._2)
       case (a -> @@(b, c)) if state._1.contains(a -> c) && !entersFree(a, b) =>
         DerivationForall(state._1.get(a->c).get._2)
 
-        //Errors
-        // TODO: Add deduction fail
+      //Errors
       case (@@(x, a) -> b) if { val t = diff(a, b);
         (t._1 && t._2 == x.name | t._2 == "0") && !freeForSubstitution(t._3, Term(t._2), a)
       } => { val t = diff(b, a); Fault(NotFreeForSubst(t._3, a, Term(t._2))) }

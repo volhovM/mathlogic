@@ -9,7 +9,7 @@ import com.volhovm.mathlogic.ordinals._
 
 object Task5 {
   def main(args: Array[String]): Unit =
-      scala.io.Source.fromFile("fifth.in").getLines.toList.foreach(
+      scala.io.Source.fromFile("tests/fifth.in").getLines.toList.foreach(
         (input: String) => new OrdinalParser(input)
           .equalityOrdinals.run().get match {
           case (a, b) => println((if (oToC(a) == oToC(b)) "Равны" else "Не равны")

@@ -7,12 +7,15 @@ package com.volhovm.mathlogic.propositional
 
 // self-documenting i suppose
 object IOUtil {
+  def getAllInDir(dirName: String) =
+    new java.io.File("tests/" + dirName).listFiles.filter(_.getName.endsWith(".in"))
+
   def parse(string: String) = new ExpressionParser(string).simpleInputLine.run().get
   def parseTerm(string: String) = new ExpressionParser(string).term.run().get
 
   // In
   def getP(fileName: String): Proof =
-    scala.io.Source.fromFile(fileName).getLines().toList.map(
+    scala.io.Source.fromFile("tests/" + fileName).getLines().toList.map(
       (a: String) => new ExpressionParser(a).simpleInputLine.run().get
     )
 
@@ -20,7 +23,7 @@ object IOUtil {
     Annotator.annotate(getP(fileName))
 
   def getD(fileName: String): Derivation = {
-    val list = scala.io.Source.fromFile(fileName).getLines().toList
+    val list = scala.io.Source.fromFile("tests/" + fileName).getLines().toList
     (new ExpressionParser(list.head).derivationInputLine.run().get._1.reverse,
      list.tail.map((a: String) => new ExpressionParser(a).simpleInputLine.run().get))
   }

@@ -1,6 +1,0 @@
-A->B->A
-P(x)->A(x)->P(x)
-P(x)->@a(A(x)->P(x))
-?zP(x)->@a(A(x)->P(x))
-@xP->P
-?xx0=x0

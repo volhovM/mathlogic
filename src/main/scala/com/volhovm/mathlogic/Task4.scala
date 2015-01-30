@@ -9,9 +9,10 @@ import com.volhovm.mathlogic.propositional._
  */
 
 object Task4 {
-  def main(args: Array[String]): Unit =
-    verdict(Annotator.annotateDerivation(getD("fourth.in"))._2) match {
-      case -1 => deductionApply(getD("fourth.in")) match {
+  def main(args: Array[String]): Unit = {
+    val fileName = if (args.length == 0 || args(0) == "") "fourth.in" else args(0)
+    verdict(Annotator.annotateDerivation(getD(fileName))._2) match {
+      case -1 => deductionApply(getD(fileName)) match {
         case Right(a) => printD(a)
         case Left((ann, e, v, top)) =>
           println("Вывод некорректен начиная с формулы номер "
@@ -24,7 +25,7 @@ object Task4 {
                                            }) + " с квантором по переменной " + v.name
                     + ", входящей свободно в допущение " + top)
       }
-      case n => Annotator.annotateDerivation(getD("fourth.in"))._2(n)._2 match {
+      case n => Annotator.annotateDerivation(getD(fileName))._2(n - 1)._2 match {
         case Fault(reason) => reason match {
           case Common(text) =>
             println("Вывод некорректен начиная с формулы номер " + n + " " + text)
@@ -36,7 +37,8 @@ object Task4 {
             println("Вывод некорректен начиная с формулы номер " + n + ": переменная"
                       + variable.name + " входит свободно в формулу " + formula)
         }
-        case _ => println("Что-то поломалось, ой-ой-ой")
+        case x => println("Что-то поломалось в строчке " + n + " и выдает " + x.toString)
       }
     }
+  }
 }
