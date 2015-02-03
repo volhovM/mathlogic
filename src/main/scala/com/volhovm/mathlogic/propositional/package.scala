@@ -1,6 +1,6 @@
 package com.volhovm.mathlogic
 
-import scala.language.implicitConversions
+import language.implicitConversions
 
 /**
  * @author volhovm
@@ -78,31 +78,31 @@ package object propositional {
       Right(d)
     else
       Annotator.annotateDerivation(d)._2.map {
-               case (e, _) if e == d._1.head => Right(d._1.tail, ident(e))
-//               case (e@(@@(x, a) -> b), Axiom(11)) => if (!entersFree(d._1.head, x))
-//                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(11), e, x, d._1.head))
-//               case (e@(a -> ?(x, b)), Axiom(12)) => if (!entersFree(d._1.head, x))
-//                 Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(12), e, x, d._1.head))
-               case (e, Axiom(n)) => Right(d._1.tail, deduction1(e, d._1.head))
-               case (e, Assumption()) => Right(d._1.tail, deduction1(e, d._1.head))
-               case (e, ModusPonens(n, m)) =>
-                 Right(d._1.tail, deduction2(e, d._1.head, d._2(n), d._2(m)))
-               case (e@(a -> @@(x, b)), DerivationForall(n)) =>
-                 if (!entersFree(d._1.head, x))
-                   Right(d._1.tail, deduction3(d._1.head, a, x, b))
-                 else Left((DerivationForall(n), e, x, d._1.head))
-               case (e@(?(x, a) -> b), DerivationExists(n)) =>
-                 if (!entersFree(d._1.head, x))
-                   Right(d._1.tail, deduction4(d._1.head, x, a, b))
-                 else Left((DerivationExists(n), e, x, d._1.head))
-                   // TODO +case fault? How will i track it in this case?
-             }.reduceLeft((a, b) => a match {
-                            case Right(der1) => b match {
-                              case Right(der2) => Right(der1._1, der1._2 ++ der2._2)
-                              case a => a
-                            }
-                            case a => a
-                          })
+        case (e, _) if e == d._1.head => Right(d._1.tail, ident(e))
+        // case (e@(@@(x, a) -> b), Axiom(11)) => if (!entersFree(d._1.head, x))
+        // Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(11), e, x, d._1.head))
+        // case (e@(a -> ?(x, b)), Axiom(12)) => if (!entersFree(d._1.head, x))
+        // Right(d._1.tail, deduction1(e, d._1.head)) else Left((Axiom(12), e, x, d._1.head))
+        case (e, Axiom(n)) => Right(d._1.tail, deduction1(e, d._1.head))
+        case (e, Assumption()) => Right(d._1.tail, deduction1(e, d._1.head))
+        case (e, ModusPonens(n, m)) =>
+          Right(d._1.tail, deduction2(e, d._1.head, d._2(n), d._2(m)))
+        case (e@(a -> @@(x, b)), DerivationForall(n)) =>
+          if (!entersFree(d._1.head, x))
+            Right(d._1.tail, deduction3(d._1.head, a, x, b))
+          else Left((DerivationForall(n), e, x, d._1.head))
+        case (e@(?(x, a) -> b), DerivationExists(n)) =>
+          if (!entersFree(d._1.head, x))
+            Right(d._1.tail, deduction4(d._1.head, x, a, b))
+          else Left((DerivationExists(n), e, x, d._1.head))
+          // TODO +case fault? How will i track it in this case?
+      }.reduceLeft((a, b) => a match {
+                     case Right(der1) => b match {
+                       case Right(der2) => Right(der1._1, der1._2 ++ der2._2)
+                       case a => a
+                     }
+                     case a => a
+                   })
 
 
   def deductionUnapply(d: Derivation): Derivation =
@@ -127,7 +127,7 @@ package object propositional {
       case Term(a, l @ _*) => Term(a, l.map(x => substT(x, what, instead_of)): _*)
     }
 
-  private def prod[A](a: (Boolean, String, A), b: (Boolean, String, A)) =
+  def prod[A](a: (Boolean, String, A), b: (Boolean, String, A)) =
     (if (a._2 == "-1" | b._2 == "-1") false else
        if (a._1 == b._1 && a._1) a._2 == b._2 && a._3 == b._3
                                             else a._1 | b._1,
@@ -135,6 +135,123 @@ package object propositional {
            b._2 == "-1" |
            a._1 == b._1 && a._1 && a._2 != b._2) "-1" else if (a._1) a._2 else b._2,
      if (a._1) a._3 else b._3)
+
+  type DiffMap = Map[Term, Set[Term]]
+  def merge(a: DiffMap, b: DiffMap): DiffMap = (
+    for {
+      k1 <- (a.keySet ++ b.keySet)
+      a1 = a.getOrElse(k1, Set[Term]())
+      b1 = b.getOrElse(k1, Set[Term]())
+    } yield (k1 -> (a1 ++ b1))
+  ).toMap
+//  def mergeOpt(a: Option[DiffMap], b: Option[DiffMap]): Option[DiffMap] = for {
+//      x <- a
+//      y <- b
+//      e <- merge(x, y)
+//    } yield e
+
+  // COPY!
+  // PASTE!
+  // SICK!!!
+  def diffMod(clear: Expr, substituted: Expr, unfree: Set[Term] = Set()): Option[DiffMap] =
+    clear match {
+      case a -> b => substituted match {
+        case c -> d =>
+          for {
+            d1 <- diffMod(a, c, unfree)
+            d2 <- diffMod(b, d, unfree)
+            ans <- Some(merge(d1, d2))
+          } yield ans
+        case _ => None
+      }
+      case a & b => substituted match {
+        case c & d =>
+          for {
+            d1 <- diffMod(a, c, unfree)
+            d2 <- diffMod(b, d, unfree)
+            ans <- Some(merge(d1, d2))
+          } yield ans
+        case _ => None
+      }
+      case a V b => substituted match {
+        case c V d =>
+          for {
+            d1 <- diffMod(a, c, unfree)
+            d2 <- diffMod(b, d, unfree)
+            ans <- Some(merge(d1, d2))
+          } yield ans
+        case _ => None
+      }
+      case !!(a) => substituted match {
+        case !!(c) => diffMod(a, c, unfree)
+        case _ => None
+      }
+      case @@(a, b) => substituted match {
+        case @@(c, d) if a == c =>
+          for {
+            ans <- diffMod(b, d, unfree + a)
+          } yield ans
+        case _ => None
+      }
+      case ?(a, b) => substituted match {
+        case ?(c, d) if a == c =>
+          for {
+            ans <- diffMod(b, d, unfree + a)
+          } yield ans
+        case _ => None
+      }
+      case Pred(a, tail1 @ _*) => substituted match {
+        case x@Pred(b, tail2 @ _*) if (a == b && tail2.length == tail1.length) =>
+          if (tail1.isEmpty) Some(Map[Term, Set[Term]]())
+          else (tail1 zip tail2).map((a) => diffMod(a._1, a._2, unfree))
+            .reduceLeft((p1: Option[DiffMap], p2: Option[DiffMap]) =>
+            if (p1.isEmpty || p2.isEmpty) None else Some(merge(p1.get, p2.get)))
+        case x => None
+      }
+      // variable
+      case x@Term(a)
+          if ((a.length == 2 && a(0).isLetter && a(1).isDigit) ||
+                (a.length == 1 && a(0).isLetter)) => substituted match {
+            case y@Term(b) if b == a && unfree.contains(x) => Some(Map())
+            case y@Term(name, args @ _*) if !unfree.contains(x) => Some(Map(x -> Set(y)))
+            case _ => None
+          }
+      case Term(a, tail1 @ _*) => substituted match {
+        case x@Term(b, tail2 @ _*) if (a == b && tail1.length == tail2.length) =>
+          if (tail1.isEmpty) Some(Map[Term, Set[Term]]())
+          else (tail1 zip tail2).map((a) => diffMod(a._1, a._2, unfree))
+            .reduceLeft((p1: Option[DiffMap], p2: Option[DiffMap]) =>
+            if (p1.isEmpty || p2.isEmpty) None else Some(merge(p1.get, p2.get)))
+        case x => None
+      }
+    }
+
+  def changed(clear: Expr, substituted: Expr): Option[DiffMap] =
+    for {
+      d <- diffMod(clear, substituted)
+      res = d.filterNot((a: (Term, Set[Term])) =>
+        (a._1.args.length == 0 && a._2.size == 1 && a._1 == a._2.toList(0)))
+    } yield res
+
+  // useless
+  def oneVarChanged(clear: Expr, substituted: Expr): Option[(Term, Term)] =
+    changed(clear, substituted) match {
+      case Some(diffmap) if diffmap.size == 1 && diffmap.toList(0)._2.size == 1 =>
+        Some((diffmap.toList(0)._1, diffmap.toList(0)._2.toList(0)))
+      case _ => None
+    }
+
+  def varChangedCorrectly(clear: Expr, substituted: Expr, variable: Term): Option[Term] =
+    (for {
+      d <- diffMod(clear, substituted)
+      res = d.filterNot(a =>
+          (a._1 != variable && a._1.args.length == 0
+             && a._2.size == 1 && a._1 == a._2.toList(0)))
+     } yield res) match {
+      case Some(diffmap) if diffmap.size == 1 && diffmap.toList(0)._2.size == 1 =>
+        Some(diffmap.toList(0)._2.toList(0))
+      case None => None
+    }
 
   // checks if substituted is clear[x:=p]
   // if _1 is true then _3 is substituted instead of _2 var
@@ -144,7 +261,7 @@ package object propositional {
   //                     if _2 is "-2" exprs are not even similar
   def diff(clear: Expr, substituted: Expr): (Boolean, String, Expr) = clear match {
       case a -> b => substituted match {
-        case c -> d => prod(diff(c, a), diff(d, b))
+        case c -> d => prod(diff(a, c), diff(b, d))
         case x => (false, "-2", x)
       }
       case a & b => substituted match {
@@ -226,8 +343,25 @@ package object propositional {
     }
   }
 
-  def entersFree(e: Expr, vr: Term) = getAffectedVars(e).get(vr) match {
+  def entersFreeFail(e: Expr, vr: Term) = getAffectedVars(e).get(vr) match {
       case Some(a) => !a.contains(vr)
       case None => false
+    }
+
+  def entersFree(e: Expr, vr: Term, quantors: Set[Term] = Set()): Boolean = e match {
+      case @@(a, b) => entersFree(b, vr, quantors + a)
+      case ?(a, b)  => entersFree(b, vr, quantors + a)
+      case v@Term(a)
+          if ((a.length == 2 && a(0).isLetter && a(1).isDigit) |
+                (a.length == 1 && a(0).isLetter)) =>
+        return v == vr && !quantors.contains(v)
+      case a -> b => entersFree(a, vr, quantors) || entersFree(b, vr, quantors)
+      case a & b => entersFree(a, vr, quantors) || entersFree(b, vr, quantors)
+      case a V b => entersFree(a, vr, quantors) || entersFree(b, vr, quantors)
+      case !!(a) => entersFree(a, vr, quantors)
+      case Pred(a) => false
+      case Pred(a, l @ _*) => l.map(entersFree(_, vr, quantors)).reduce(_||_)
+      case Term(a) => false
+      case Term(a, l @ _*) => l.map(entersFree(_, vr, quantors)).reduce(_||_)
     }
 }

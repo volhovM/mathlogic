@@ -10,13 +10,14 @@ import com.volhovm.mathlogic.propositional._
 
 object Task4 {
   def main(args: Array[String]): Unit = {
-    val fileName = if (args.length == 0 || args(0) == "") "fourth.in" else args(0)
+    val fileName = if (args.length == 0 || args(0) == "") "task4.in" else args(0)
+//    val fileName = args(0)
     verdict(Annotator.annotateDerivation(getD(fileName))._2) match {
       case -1 => deductionApply(getD(fileName)) match {
         case Right(a) => printD(a)
         case Left((ann, e, v, top)) =>
           println("Вывод некорректен начиная с формулы номер "
-                    + (getD("fourth.in")._2.indexOf(e) + 1).toString
+                    + (getD(fileName)._2.indexOf(e) + 1).toString
                     + ": используется " + (ann match {
                                              case Axiom(n) => "схема аксиом"
                                              case DerivationForall(_) => "правило"
@@ -34,7 +35,7 @@ object Task4 {
                       + theta + " не свободен для подстановки в формулу " + formula
                       + " вместо переменной " + variable.name)
           case EntersFree(formula, variable) =>
-            println("Вывод некорректен начиная с формулы номер " + n + ": переменная"
+            println("Вывод некорректен начиная с формулы номер " + n + ": переменная "
                       + variable.name + " входит свободно в формулу " + formula)
         }
         case x => println("Что-то поломалось в строчке " + n + " и выдает " + x.toString)

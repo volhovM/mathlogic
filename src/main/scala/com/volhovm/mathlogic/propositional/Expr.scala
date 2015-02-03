@@ -28,9 +28,9 @@ case class &(lhs: Expr, rhs: Expr) extends Expr { override def toString = string
 case class V(lhs: Expr, rhs: Expr) extends Expr { override def toString = string2("|")(lhs, rhs)}
 case class !!(a: Expr) extends Expr { override def toString: String = "!" + wrap(a) }
 case class @@(lhs: Term, rhs: Expr) extends Expr
-  { override def toString: String = "∀" + lhs + "." + wrap(rhs) }
+  { override def toString: String = "∀" + lhs + wrap(rhs) }
 case class ?(lhs: Term, rhs: Expr) extends Expr
-  { override def toString: String = "∃" + lhs + "." + wrap(rhs) }
+  { override def toString: String = "∃" + lhs + wrap(rhs) }
 case class Pred(name: String, args: Term*) extends Expr
   { override def toString = if (name.length == 1 && !name(0).isLetter && args.length == 2)
                             args(0).toString + name + args(1)

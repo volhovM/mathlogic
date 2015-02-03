@@ -8,7 +8,6 @@ import scala.collection.mutable.{HashMap, MultiMap, Set}
  * @author volhovm
  *         Created on 9/10/14
  */
-
 object Annotator {
   /**
    * Inner annotator state. It accumulates values from CMap, MPMap, Context to List[A]
@@ -114,16 +113,16 @@ object Annotator {
       case ((a & b) -> c) if b == c => Axiom(5)
         // @b@a(a=b->a=t->b=t)->@a(a=t->a=t->t=t)
         // not working because of diff
-      case (@@(x, a) -> b) if {
-        val t = diff(a, b);
-        (t._1 && t._2 == x.name || t._2 == "0") &&
-        freeForSubstitution(t._3, Term(t._2), a)
-      } => Axiom(11)
-      case (a -> ?(x, b)) if {
-        val t = diff(b, a);
-        (t._1 && t._2 == x.name || t._2 == "0") &&
-        freeForSubstitution(t._3, Term(t._2), a)
-      } => Axiom(12)
+      case (@@(x, a) -> b) if (varChangedCorrectly(a, b, x) match {
+                                 case Some(theta) =>
+                                   (freeForSubstitution(theta, x, a))
+                                 case None => false
+                               }) => Axiom(11)
+      case (a -> ?(x, b)) if (varChangedCorrectly(b, a, x) match {
+                                case Some(theta) =>
+                                  (freeForSubstitution(theta, x, b))
+                                case None => false
+                              }) => Axiom(12)
       case (a -> (b V c)) if a == b => Axiom(6)
       case (a -> (b V c)) if a == c => Axiom(7)
       case (!!(!!(a)) -> b) if a == b => Axiom(10)
@@ -162,13 +161,17 @@ object Annotator {
       case (a -> @@(b, c)) if state._1.contains(a -> c) && !entersFree(a, b) =>
         DerivationForall(state._1.get(a->c).get._2)
 
-      //Errors
-      case (@@(x, a) -> b) if { val t = diff(a, b);
-        (t._1 && t._2 == x.name | t._2 == "0") && !freeForSubstitution(t._3, Term(t._2), a)
-      } => { val t = diff(b, a); Fault(NotFreeForSubst(t._3, a, Term(t._2))) }
-      case (a -> ?(x, b)) if { val t = diff(b, a);
-        (t._1 && t._2 == x.name | t._2 == "0") && !freeForSubstitution(t._3, Term(t._2), a)
-      } => { val t = diff(b, a); Fault(NotFreeForSubst(t._3, a, Term(t._2))) }
+        //Errors
+      case (@@(x, a) -> b) if (varChangedCorrectly(a, b, x) match {
+                                 case Some(theta) =>
+                                   !(freeForSubstitution(theta, x, a))
+                                 case None => false
+                               }) => Fault(NotFreeForSubst(varChangedCorrectly(a, b, x).get, a, x))
+      case (b -> ?(x, a)) if (varChangedCorrectly(a, b, x) match {
+                                 case Some(theta) =>
+                                   !(freeForSubstitution(theta, x, a))
+                                 case None => false
+                               }) => Fault(NotFreeForSubst(varChangedCorrectly(a, b, x).get, a, x))
       case (?(a, b) -> c) if state._1.contains(b -> c) && entersFree(c, a) =>
         Fault(EntersFree(c, a))
       case (a -> @@(b, c)) if state._1.contains(a -> c) && entersFree(a, b) =>

@@ -7,5 +7,5 @@ Solutions for math logic course (III semester ITMO CT 17') tasks:
 2.  DeductionTransformer
 3.  Proof maker
 4.  Predicates parsing, verificating, deduction
-5.  Ordinals arithmetic
-6.  TODO Division proofmaker
+7.  CANCELED Division proofmaker
+8.  Ordinals arithmetic
