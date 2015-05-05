@@ -6,12 +6,13 @@ import scala.language.reflectiveCalls
 // http://www.ccs.neu.edu/home/pete/pub/cade-algorithms-ordinal-arithmetic.pdf
 
 sealed trait Ordinal
+{ def wrapped(inside: String) = "(" + inside + ")" }
 case class *(lhs: Ordinal, rhs: Ordinal) extends Ordinal
-{ override def toString = lhs.toString + "*" + rhs }
+{ override def toString = wrapped(lhs.toString + "*" + rhs) }
 case class +(lhs: Ordinal, rhs: Ordinal) extends Ordinal
-{ override def toString = lhs.toString + "+" + rhs }
+{ override def toString = wrapped(lhs.toString + "+" + rhs) }
 case class ^(lhs: Ordinal, rhs: Ordinal) extends Ordinal
-{ override def toString = lhs.toString + "^" + rhs }
+{ override def toString = wrapped(lhs.toString + "^" + rhs) }
 case class Num(num: Integer) extends Ordinal
 { override def toString = num.toString }
 case class W() extends Ordinal
